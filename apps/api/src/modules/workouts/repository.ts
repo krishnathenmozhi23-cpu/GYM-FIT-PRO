@@ -167,6 +167,25 @@ export async function getLoadHistory(userId: string, db: Queryable = pool): Prom
   return new Map(rows.map((r) => [r.exercise_id, r.weight]));
 }
 
+/**
+ * Suggested-load seeds for (re)generating a plan: the last working weight
+ * from history, overridden by the active plan's current targets, which
+ * already include adaptive changes such as a deload.
+ */
+export async function getLoadSeeds(userId: string, db: Queryable = pool): Promise<Map<string, number>> {
+  const seeds = await getLoadHistory(userId, db);
+  const { rows } = await db.query<{ exercise_id: string; target: number }>(
+    `SELECT we.exercise_id, max(we.target_weight_kg) AS target
+     FROM workout_exercises we JOIN workouts w ON w.id = we.workout_id
+     JOIN workout_plans p ON p.id = w.plan_id
+     WHERE p.user_id = $1 AND p.status = 'active' AND we.target_weight_kg IS NOT NULL
+     GROUP BY we.exercise_id`,
+    [userId],
+  );
+  for (const r of rows) seeds.set(r.exercise_id, r.target);
+  return seeds;
+}
+
 export interface CompletedSessionRef {
   id: string;
   workoutId: string | null;

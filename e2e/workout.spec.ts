@@ -12,7 +12,8 @@ test("user can follow, track and finish a workout", async ({ page }) => {
   await expect(page.getByLabel("Workout time")).toBeVisible();
   // Log a set on the first exercise
   const weight = page.getByLabel("Weight in kg");
-  if (await weight.isVisible()) await weight.fill("20");
+  const loaded = await weight.isVisible();
+  if (loaded) await weight.fill("20");
   await page.getByRole("button", { name: "Log set" }).click();
   await expect(page.getByRole("dialog", { name: "Rest timer" })).toBeVisible();
   await page.getByRole("button", { name: "Skip rest" }).click();
@@ -37,6 +38,11 @@ test("user can follow, track and finish a workout", async ({ page }) => {
   await page.getByRole("radio", { name: /Just right/ }).click();
   await page.getByRole("button", { name: "Save workout" }).click();
   await expect(page.getByRole("heading", { name: "Workout complete" })).toBeVisible();
+  if (loaded) {
+    // The plan adapts: the first session calibrates the suggested load.
+    await expect(page.getByRole("heading", { name: "Your next workouts" })).toBeVisible();
+    await expect(page.getByText(/— → 20 kg/)).toBeVisible();
+  }
   await page.screenshot({ path: "test-results/phase2-summary.png" });
   await page.getByRole("button", { name: "Done" }).click();
   await expect(page.getByText(/1\/4 workouts/)).toBeVisible();

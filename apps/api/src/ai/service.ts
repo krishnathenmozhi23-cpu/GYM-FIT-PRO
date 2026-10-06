@@ -26,7 +26,7 @@ import { eligibleExercises } from "../engine/filters.js";
 import { generatePlan } from "../engine/planGenerator.js";
 import { estimateWorkoutMinutes } from "../engine/prescription.js";
 import { condenseWorkout, generateQuickWorkout } from "../engine/quickWorkout.js";
-import { savePlan, getActivePlan } from "../modules/workouts/repository.js";
+import { savePlan, getActivePlan, getLoadSeeds } from "../modules/workouts/repository.js";
 import { buildUserContext, promptContext, type UserContext } from "./context.js";
 import { offlineAnswer } from "./offlineAssistant.js";
 import { ALTERNATIVES_SYSTEM, CHAT_SYSTEM, DAILY_SYSTEM, INSIGHT_SYSTEM, PLAN_SYSTEM } from "./prompts.js";
@@ -101,7 +101,8 @@ const meta = (source: AiSource, model: string | null, fallbackReason: string | n
 export async function generateWorkoutPlan(userId: string, today: string, preference?: string): Promise<{ plan: PlanView; warnings: string[]; meta: AiMeta }> {
   const ctx = await buildUserContext(userId, today);
   if (!ctx.profile.onboardingCompleted) throw badRequest("Complete onboarding first");
-  const baseline = generatePlan(ctx.library, ctx.engineProfile, ctx.loadHistory);
+  const seeds = await getLoadSeeds(userId);
+  const baseline = generatePlan(ctx.library, ctx.engineProfile, seeds);
   const provider = getProvider();
   const allowed = eligibleExercises(ctx.library, ctx.engineProfile);
   const input = { context: promptContext(ctx), preference: preference ?? null };
@@ -117,7 +118,7 @@ export async function generateWorkoutPlan(userId: string, today: string, prefere
         effort: "medium",
         devMockOutput: () => baseline.plan,
       }),
-    (plan) => validatePlan(plan, { profile: ctx.engineProfile, library: ctx.library, loadHistory: ctx.loadHistory }).errors,
+    (plan) => validatePlan(plan, { profile: ctx.engineProfile, library: ctx.library, loadHistory: seeds }).errors,
   );
 
   const { recId, source, model } = await withTransaction(async (db) => {

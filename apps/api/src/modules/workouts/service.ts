@@ -26,7 +26,7 @@ export async function generateEnginePlan(userId: string): Promise<{ plan: PlanVi
   const profile = await getProfile(userId);
   if (!profile.onboardingCompleted) throw badRequest("Complete onboarding first");
   const { list, byId } = await getLibrary();
-  const history = await repo.getLoadHistory(userId);
+  const history = await repo.getLoadSeeds(userId);
   const { plan, warnings } = generatePlan(list, toEngineProfile(profile), history);
   await withTransaction((db) => repo.savePlan(db, userId, plan, "rule_engine", null));
   return { plan: (await repo.getActivePlan(userId, byId))!, warnings };
