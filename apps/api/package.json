@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
-    "build": "esbuild src/server.ts src/db/migrate.ts src/db/seed.ts --bundle --platform=node --format=esm --target=node22 --outdir=dist --packages=external --alias:@gymfit/shared=../../packages/shared/src/index.ts --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\" && cp -r src/db/migrations dist/migrations",
+    "start:migrate": "node dist/db/migrate.js",
+    "build": "esbuild src/server.ts src/db/migrate.ts src/db/seed.ts --bundle --platform=node --format=esm --target=node22 --outdir=dist --packages=external --alias:@gymfit/shared=../../packages/shared/src/index.ts --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\" && rm -rf dist/db/migrations && cp -r src/db/migrations dist/db/migrations",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "db:migrate": "tsx src/db/migrate.ts",

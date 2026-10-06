@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gymfit
+          POSTGRES_PASSWORD: gymfit
+          POSTGRES_DB: gymfit
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U gymfit" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://gymfit:gymfit@localhost:5432/gymfit_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: psql postgres://gymfit:gymfit@localhost:5432/gymfit -c "CREATE DATABASE gymfit_test"
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gymfit
+          POSTGRES_PASSWORD: gymfit
+          POSTGRES_DB: gymfit
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U gymfit" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Configure API
+        run: |
+          cat > apps/api/.env <<ENV
+          DATABASE_URL=postgres://gymfit:gymfit@localhost:5432/gymfit
+          JWT_SECRET=$(openssl rand -hex 48)
+          AI_PROVIDER=none
+          ENV
+      - run: npm run db:migrate && npm run db:seed
+      - run: npm run test:e2e

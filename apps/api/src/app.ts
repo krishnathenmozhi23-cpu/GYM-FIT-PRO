@@ -1,4 +1,5 @@
-import express from "express";
+import path from "node:path";
+import express, { Router } from "express";
 import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -32,18 +33,31 @@ export function createApp() {
   app.use(cookieParser());
   if (env.NODE_ENV !== "test") app.use(pinoHttp({ logger }));
 
-  app.get("/health", async (_req, res) => {
+  const api = Router();
+  api.get("/health", async (_req, res) => {
     await pool.query("SELECT 1");
     res.json({ status: "ok" });
   });
+  api.use("/auth", authRouter);
+  api.use("/profile", requireAuth, profileRouter);
+  api.use("/exercises", requireAuth, exercisesRouter);
+  api.use("/workouts", requireAuth, workoutsRouter);
+  api.use("/workout-session", requireAuth, sessionsRouter);
+  api.use("/progress", requireAuth, progressRouter);
+  api.use("/ai", requireAuth, aiRouter);
+  api.use(notFoundHandler);
+  app.use(env.API_PREFIX || "/", api);
 
-  app.use("/auth", authRouter);
-  app.use("/profile", requireAuth, profileRouter);
-  app.use("/exercises", requireAuth, exercisesRouter);
-  app.use("/workouts", requireAuth, workoutsRouter);
-  app.use("/workout-session", requireAuth, sessionsRouter);
-  app.use("/progress", requireAuth, progressRouter);
-  app.use("/ai", requireAuth, aiRouter);
+  // Production: serve the web build with SPA fallback (only when an API prefix separates the two).
+  if (env.WEB_DIST_DIR && env.API_PREFIX) {
+    const dist = path.resolve(env.WEB_DIST_DIR);
+    app.use(express.static(dist, { index: false, maxAge: "1h", immutable: false }));
+    app.use("/assets", express.static(path.join(dist, "assets"), { immutable: true, maxAge: "1y" }));
+    const prefix = env.API_PREFIX;
+    app.get(/.*/, (req, res, next) =>
+      req.path === prefix || req.path.startsWith(`${prefix}/`) ? next() : res.sendFile(path.join(dist, "index.html")),
+    );
+  }
 
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -18,6 +18,10 @@ const envSchema = z.object({
   AI_PROVIDER: z.enum(["anthropic", "mock", "none"]).default("none"),
   AI_MODEL: z.string().default("claude-opus-5-5"),
   AI_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
+  /** Path prefix for API routes. Use "/api" when the API also serves the web build. */
+  API_PREFIX: z.string().regex(/^(\/[a-z0-9-]+)*$/i).default(""),
+  /** If set, serve the built web app (apps/web/dist) from this directory. */
+  WEB_DIST_DIR: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

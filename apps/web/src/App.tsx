@@ -3,8 +3,10 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-route
 import { AppShell } from "./components/AppShell";
 import { LoadingState } from "./components/ui";
 import { AuthProvider, useAuth } from "./state/auth";
-import { AuthPage } from "./features/auth/AuthPage";
-import { OnboardingPage } from "./features/onboarding/OnboardingPage";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+
+const AuthPage = lazy(() => import("./features/auth/AuthPage").then((m) => ({ default: m.AuthPage })));
+const OnboardingPage = lazy(() => import("./features/onboarding/OnboardingPage").then((m) => ({ default: m.OnboardingPage })));
 
 const HomePage = lazy(() => import("./features/home/HomePage"));
 const WorkoutsPage = lazy(() => import("./features/workouts/WorkoutsPage"));
@@ -33,36 +35,38 @@ function GuestOnly({ children }: { children: ReactNode }) {
 
 export function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<GuestOnly><AuthPage mode="login" /></GuestOnly>} />
-          <Route path="/register" element={<GuestOnly><AuthPage mode="register" /></GuestOnly>} />
-          <Route path="/onboarding" element={<RequireAuth allowIncomplete><OnboardingPage /></RequireAuth>} />
-          <Route element={<RequireAuth><AppShell /></RequireAuth>}>
-            <Route index element={<HomePage />} />
-            <Route path="workouts" element={<WorkoutsPage />} />
-            <Route path="workout/:id" element={<WorkoutDetailPage />} />
-            <Route path="explore" element={<ExplorePage />} />
-            <Route path="explore/:id" element={<ExerciseDetailPage />} />
-            <Route path="progress" element={<ProgressPage />} />
-            <Route path="profile" element={<ProfilePage />} />
-          </Route>
-          <Route
-            path="/session/:id"
-            element={
-              <RequireAuth>
-                <div className="app-shell" style={{ paddingBottom: 32 }}>
-                  <Suspense fallback={<LoadingState />}>
-                    <SessionPage />
-                  </Suspense>
-                </div>
-              </RequireAuth>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <BrowserRouter>
+          <Suspense fallback={<LoadingState />}>
+            <Routes>
+              <Route path="/login" element={<GuestOnly><AuthPage mode="login" /></GuestOnly>} />
+              <Route path="/register" element={<GuestOnly><AuthPage mode="register" /></GuestOnly>} />
+              <Route path="/onboarding" element={<RequireAuth allowIncomplete><OnboardingPage /></RequireAuth>} />
+              <Route element={<RequireAuth><AppShell /></RequireAuth>}>
+                <Route index element={<HomePage />} />
+                <Route path="workouts" element={<WorkoutsPage />} />
+                <Route path="workout/:id" element={<WorkoutDetailPage />} />
+                <Route path="explore" element={<ExplorePage />} />
+                <Route path="explore/:id" element={<ExerciseDetailPage />} />
+                <Route path="progress" element={<ProgressPage />} />
+                <Route path="profile" element={<ProfilePage />} />
+              </Route>
+              <Route
+                path="/session/:id"
+                element={
+                  <RequireAuth>
+                    <div className="app-shell" style={{ paddingBottom: 32 }}>
+                      <SessionPage />
+                    </div>
+                  </RequireAuth>
+                }
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

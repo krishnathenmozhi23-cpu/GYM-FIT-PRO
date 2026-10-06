@@ -36,11 +36,15 @@ export async function register(input: RegisterInput): Promise<{ user: AuthUser; 
   }
 }
 
+// Verified against when the email doesn't exist, so response time doesn't reveal registered accounts.
+const dummyHash = hashPassword("timing-equalisation-dummy-password");
+
 export async function login(input: LoginInput): Promise<{ user: AuthUser; token: string }> {
   const { rows } = await pool.query<UserRow>(`${USER_SELECT} WHERE lower(u.email) = $1`, [input.email]);
   const row = rows[0];
+  const valid = await verifyPassword(input.password, row?.password_hash ?? (await dummyHash));
   // Same error for unknown email and wrong password to avoid account enumeration.
-  if (!row || !(await verifyPassword(input.password, row.password_hash))) {
+  if (!row || !valid) {
     throw unauthorized("Invalid email or password");
   }
   return { user: toAuthUser(row), token: await signToken(row.id) };
