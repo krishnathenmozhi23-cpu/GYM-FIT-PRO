@@ -11,6 +11,8 @@ const WorkoutsPage = lazy(() => import("./features/workouts/WorkoutsPage"));
 const WorkoutDetailPage = lazy(() => import("./features/workouts/WorkoutDetailPage"));
 const SessionPage = lazy(() => import("./features/session/SessionPage"));
 const ExplorePage = lazy(() => import("./features/explore/ExplorePage"));
+const ProgressPage = lazy(() => import("./features/progress/ProgressPage"));
+const ProfilePage = lazy(() => import("./features/profile/ProfilePage"));
 const ExerciseDetailPage = lazy(() => import("./features/explore/ExerciseDetailPage"));
 
 function RequireAuth({ children, allowIncomplete = false }: { children: ReactNode; allowIncomplete?: boolean }) {
@@ -43,6 +45,8 @@ export function App() {
             <Route path="workout/:id" element={<WorkoutDetailPage />} />
             <Route path="explore" element={<ExplorePage />} />
             <Route path="explore/:id" element={<ExerciseDetailPage />} />
+            <Route path="progress" element={<ProgressPage />} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
           <Route
             path="/session/:id"
