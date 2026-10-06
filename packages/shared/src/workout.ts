@@ -197,3 +197,12 @@ export interface SessionSummary {
   setsCompleted: number;
   volumeKg: number;
 }
+
+/** Start a session that isn't a plan day (e.g. a quick or condensed workout). */
+export const startAdHocSessionSchema = z.object({
+  title: z.string().trim().min(1).max(60),
+  exercises: z.array(prescribedExerciseSchema).min(1).max(12),
+  /** Optional plan workout this ad-hoc session stands in for (e.g. a condensed version). */
+  workoutId: z.uuid().nullable().optional(),
+});
+export type StartAdHocSessionInput = z.infer<typeof startAdHocSessionSchema>;

@@ -1,4 +1,4 @@
-import { lazy, type ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
 import { AppShell } from "./components/AppShell";
 import { LoadingState } from "./components/ui";
@@ -7,6 +7,11 @@ import { AuthPage } from "./features/auth/AuthPage";
 import { OnboardingPage } from "./features/onboarding/OnboardingPage";
 
 const HomePage = lazy(() => import("./features/home/HomePage"));
+const WorkoutsPage = lazy(() => import("./features/workouts/WorkoutsPage"));
+const WorkoutDetailPage = lazy(() => import("./features/workouts/WorkoutDetailPage"));
+const SessionPage = lazy(() => import("./features/session/SessionPage"));
+const ExplorePage = lazy(() => import("./features/explore/ExplorePage"));
+const ExerciseDetailPage = lazy(() => import("./features/explore/ExerciseDetailPage"));
 
 function RequireAuth({ children, allowIncomplete = false }: { children: ReactNode; allowIncomplete?: boolean }) {
   const { user, ready } = useAuth();
@@ -34,7 +39,23 @@ export function App() {
           <Route path="/onboarding" element={<RequireAuth allowIncomplete><OnboardingPage /></RequireAuth>} />
           <Route element={<RequireAuth><AppShell /></RequireAuth>}>
             <Route index element={<HomePage />} />
+            <Route path="workouts" element={<WorkoutsPage />} />
+            <Route path="workout/:id" element={<WorkoutDetailPage />} />
+            <Route path="explore" element={<ExplorePage />} />
+            <Route path="explore/:id" element={<ExerciseDetailPage />} />
           </Route>
+          <Route
+            path="/session/:id"
+            element={
+              <RequireAuth>
+                <div className="app-shell" style={{ paddingBottom: 32 }}>
+                  <Suspense fallback={<LoadingState />}>
+                    <SessionPage />
+                  </Suspense>
+                </div>
+              </RequireAuth>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

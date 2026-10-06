@@ -10,6 +10,9 @@ import { requireAuth } from "./middleware/auth.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.js";
 import { authRouter } from "./modules/auth/routes.js";
 import { profileRouter } from "./modules/profile/routes.js";
+import { exercisesRouter } from "./modules/exercises/routes.js";
+import { workoutsRouter } from "./modules/workouts/routes.js";
+import { sessionsRouter } from "./modules/sessions/routes.js";
 
 export function createApp() {
   const app = express();
@@ -34,6 +37,9 @@ export function createApp() {
 
   app.use("/auth", authRouter);
   app.use("/profile", requireAuth, profileRouter);
+  app.use("/exercises", requireAuth, exercisesRouter);
+  app.use("/workouts", requireAuth, workoutsRouter);
+  app.use("/workout-session", requireAuth, sessionsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
