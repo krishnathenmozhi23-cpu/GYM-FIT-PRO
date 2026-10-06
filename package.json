@@ -1,0 +1,25 @@
+{
+  "name": "gymfit-pro",
+  "private": true,
+  "version": "0.1.0",
+  "description": "GymFit Pro — adaptive AI-assisted fitness platform",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev:api": "npm run dev -w @gymfit/api",
+    "dev:web": "npm run dev -w @gymfit/web",
+    "db:migrate": "npm run db:migrate -w @gymfit/api",
+    "db:seed": "npm run db:seed -w @gymfit/api",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}
