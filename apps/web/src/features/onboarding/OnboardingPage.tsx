@@ -81,7 +81,7 @@ export function OnboardingPage() {
     try {
       await api.post<{ profile: Profile }>("/profile", parsed.data);
       // Generating the first plan is best-effort here; the Workouts tab can retry.
-      await api.post("/workouts/plan", {}).catch(() => undefined);
+      await api.post("/ai/workout-plan", {}).catch(() => undefined);
       try {
         localStorage.removeItem(DRAFT_KEY);
       } catch {

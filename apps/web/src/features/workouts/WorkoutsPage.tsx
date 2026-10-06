@@ -19,7 +19,7 @@ export default function WorkoutsPage() {
     setRegenerating(true);
     setRegenError(null);
     try {
-      await api.post("/workouts/plan", {});
+      await api.post("/ai/workout-plan", {});
       await Promise.all([plan.reload(), today.reload()]);
     } catch (err) {
       setRegenError(errorMessage(err));

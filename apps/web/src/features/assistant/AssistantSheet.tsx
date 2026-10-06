@@ -1,9 +1,192 @@
-import { Sheet } from "../../components/ui";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router";
+import { Bot, Send, ShieldAlert } from "lucide-react";
+import type { AiStatus, ChatAction, ChatMessageView, ChatResponse, ConversationView, DailyWorkoutRequest } from "@gymfit/shared";
+import { Alert, Button, Sheet, SourceBadge, Spinner } from "../../components/ui";
+import { api, errorMessage } from "../../lib/api";
+import { useStartWorkout } from "../workouts/useStartWorkout";
+import { QuickWorkoutSheet } from "../workouts/QuickWorkoutSheet";
+
+const SUGGESTIONS = [
+  "What should I train today?",
+  "I only have 30 minutes today.",
+  "I missed yesterday's workout. What should I do?",
+  "Give me an alternative for squats.",
+  "Why am I not progressing?",
+  "Create a beginner workout for me.",
+];
+
+const titleCase = (slug: string) => slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+function actionLabel(a: ChatAction): string {
+  switch (a.type) {
+    case "start_today":
+      return "Start workout";
+    case "quick_workout":
+      return a.focus ? `Build ${a.minutes}-min ${a.focus.replace("_", " ")} workout` : `Build ${a.minutes}-min version`;
+    case "view_exercise":
+      return `View ${titleCase(a.exerciseId)}`;
+    case "regenerate_plan":
+      return "Rebuild my plan";
+    case "log_weight":
+      return "Log weight";
+  }
+}
 
 export default function AssistantSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const navigate = useNavigate();
+  const { start } = useStartWorkout();
+  const [conversationId, setConversationId] = useState<string | undefined>();
+  const [messages, setMessages] = useState<ChatMessageView[]>([]);
+  const [status, setStatus] = useState<AiStatus | null>(null);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [quick, setQuick] = useState<DailyWorkoutRequest | null>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    api.get<AiStatus>("/ai/status").then(setStatus, () => undefined);
+    api.get<{ conversation: ConversationView | null }>("/ai/conversations/latest").then(
+      ({ conversation }) => {
+        if (conversation) {
+          setConversationId(conversation.id);
+          setMessages(conversation.messages);
+        }
+      },
+      () => undefined,
+    );
+  }, []);
+
+  useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), [messages, sending]);
+
+  async function send(text: string) {
+    const message = text.trim();
+    if (!message || sending) return;
+    setError(null);
+    setInput("");
+    const optimistic: ChatMessageView = {
+      id: `local-${Date.now()}`, role: "user", content: message, actions: [], safetyNote: null, source: null, createdAt: new Date().toISOString(),
+    };
+    setMessages((m) => [...m, optimistic]);
+    setSending(true);
+    try {
+      const res = await api.post<ChatResponse>("/ai/chat", { message, conversationId });
+      setConversationId(res.conversationId);
+      setMessages((m) => [...m, res.message]);
+    } catch (err) {
+      setError(errorMessage(err));
+      setMessages((m) => m.filter((x) => x.id !== optimistic.id));
+      setInput(message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function runAction(a: ChatAction) {
+    switch (a.type) {
+      case "start_today":
+        onClose();
+        void start();
+        break;
+      case "quick_workout":
+        setQuick({ minutes: a.minutes, focus: a.focus });
+        break;
+      case "view_exercise":
+        onClose();
+        navigate(`/explore/${a.exerciseId}`);
+        break;
+      case "regenerate_plan":
+        onClose();
+        navigate("/workouts");
+        break;
+      case "log_weight":
+        onClose();
+        navigate("/progress");
+        break;
+    }
+  }
+
+  const offline = status && !status.llmEnabled;
+
   return (
-    <Sheet open={open} onClose={onClose} title="AI Coach">
-      <p className="muted">Assistant arrives in Phase 4.</p>
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title="AI Coach"
+      footer={
+        <form
+          className="chat-input"
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault();
+            void send(input);
+          }}
+        >
+          <input className="input" placeholder="Ask about your training…" value={input} maxLength={2000} onChange={(e) => setInput(e.target.value)} aria-label="Message" />
+          <button className="icon-btn" type="submit" aria-label="Send" disabled={!input.trim() || sending} style={{ width: 52, height: 52, background: "var(--accent)", color: "var(--accent-ink)", border: "none" }}>
+            <Send size={20} />
+          </button>
+        </form>
+      }
+    >
+      <div className="chat-log" aria-live="polite">
+        {offline && (
+          <Alert kind="info">
+            {status.provider === "mock"
+              ? "Development mock mode — replies are scripted from your data, not generated by an AI model."
+              : "Offline coach — no AI model is configured, so answers come from the built-in engine using your data."}
+          </Alert>
+        )}
+        {messages.length === 0 && (
+          <div className="stack">
+            <div className="row">
+              <span className="option-icon">
+                <Bot size={18} />
+              </span>
+              <p className="muted small">I know your plan, schedule and logged workouts. Ask me anything about your training.</p>
+            </div>
+            <div className="chips">
+              {SUGGESTIONS.map((s) => (
+                <button key={s} className="chip" onClick={() => void send(s)} style={{ textAlign: "left" }}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {messages.map((m) => (
+          <div key={m.id} className="stack-sm" style={{ alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
+            <div className={`bubble bubble-${m.role}`}>{m.content}</div>
+            {m.safetyNote && m.safetyNote !== m.content && (
+              <div className="alert alert-warn" style={{ maxWidth: "88%" }}>
+                <ShieldAlert size={16} style={{ flexShrink: 0 }} />
+                <span>{m.safetyNote}</span>
+              </div>
+            )}
+            {m.actions.length > 0 && (
+              <div className="chips" style={{ maxWidth: "88%" }}>
+                {m.actions.map((a, i) => (
+                  <Button key={i} small variant="secondary" onClick={() => runAction(a)}>
+                    {actionLabel(a)}
+                  </Button>
+                ))}
+              </div>
+            )}
+            {m.role === "assistant" && <SourceBadge source={m.source} />}
+          </div>
+        ))}
+        {sending && (
+          <div className="bubble bubble-assistant row" style={{ gap: 8 }}>
+            <Spinner /> Thinking…
+          </div>
+        )}
+        {error && <Alert kind="error">{error}</Alert>}
+        <p className="small faint" style={{ textAlign: "center", marginTop: 8 }}>
+          General fitness guidance only — not medical advice.
+        </p>
+        <div ref={endRef} />
+      </div>
+      {quick && <QuickWorkoutSheet request={quick} onClose={() => setQuick(null)} />}
     </Sheet>
   );
 }
