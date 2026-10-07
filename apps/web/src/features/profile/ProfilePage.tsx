@@ -15,6 +15,7 @@ import { Alert, Button, ErrorState, LoadingState, Sheet } from "../../components
 import { api, errorMessage } from "../../lib/api";
 import { useAsync } from "../../lib/useAsync";
 import { useAuth } from "../../state/auth";
+import { AccountSection } from "./AccountSection";
 import { AboutStep, EquipmentStep, GoalStep, LevelStep, LimitationsStep, ScheduleStep, type Draft } from "../onboarding/steps";
 
 type Section = { key: string; title: string; summary: (p: Profile) => string; Step: ComponentType<{ draft: Draft; set: (p: Partial<Draft>) => void }>; affectsPlan: boolean };
@@ -85,7 +86,7 @@ export default function ProfilePage() {
         <span className="brand-mark" style={{ width: 52, height: 52, fontSize: 22, fontWeight: 800 }}>{profile.name[0]?.toUpperCase()}</span>
         <div className="stack-sm grow">
           <span style={{ fontWeight: 800, fontSize: 18 }}>{profile.name}</span>
-          <span className="small muted">{user?.email}</span>
+          <span className="small muted" style={{ overflowWrap: "anywhere" }}>{user?.email}</span>
         </div>
       </div>
       {planNotice && <Alert kind="info">{planNotice}</Alert>}
@@ -120,6 +121,8 @@ export default function ProfilePage() {
           </p>
         )}
       </div>
+
+      <AccountSection />
 
       <Button variant="secondary" onClick={() => void logout()}>
         <LogOut size={16} /> Log out

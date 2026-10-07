@@ -76,6 +76,11 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
             />
           </Field>
           {!isLogin && <p className="small faint">At least 8 characters.</p>}
+          {isLogin && (
+            <Link to="/forgot-password" className="small" style={{ color: "var(--muted)", alignSelf: "flex-end" }}>
+              Forgot password?
+            </Link>
+          )}
           <Button type="submit" block loading={busy} disabled={!email || !password}>
             {isLogin ? "Log in" : "Create account"}
           </Button>

@@ -18,6 +18,14 @@ const envSchema = z.object({
   AI_PROVIDER: z.enum(["anthropic", "mock", "none"]).default("none"),
   AI_MODEL: z.string().default("claude-opus-5-5"),
   AI_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
+  /** Public URL of the web app, used in emailed links. */
+  APP_URL: z.string().url().default("http://localhost:5173"),
+  /**
+   * `console`  — DEVELOPMENT ONLY: prints emails (with links) to the log.
+   * `disabled` — no email; reset/verification endpoints return 503.
+   * Production needs a real provider implemented in lib/mailer.ts.
+   */
+  MAIL_PROVIDER: z.enum(["console", "disabled"]).optional(),
   /** Path prefix for API routes. Use "/api" when the API also serves the web build. */
   API_PREFIX: z.string().regex(/^(\/[a-z0-9-]+)*$/i).default(""),
   /** If set, serve the built web app (apps/web/dist) from this directory. */
@@ -32,7 +40,11 @@ function loadEnv(): Env {
     const problems = parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n");
     throw new Error(`Invalid environment configuration:\n${problems}`);
   }
-  return parsed.data;
+  const data = parsed.data;
+  if (data.NODE_ENV === "production" && data.MAIL_PROVIDER === "console") {
+    throw new Error("MAIL_PROVIDER=console prints links to logs and must not be used in production");
+  }
+  return { ...data, MAIL_PROVIDER: data.MAIL_PROVIDER ?? (data.NODE_ENV === "production" ? "disabled" : "console") };
 }
 
 export const env = loadEnv();

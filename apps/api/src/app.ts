@@ -16,6 +16,7 @@ import { workoutsRouter } from "./modules/workouts/routes.js";
 import { sessionsRouter } from "./modules/sessions/routes.js";
 import { progressRouter } from "./modules/progress/routes.js";
 import { aiRouter } from "./ai/routes.js";
+import { getDevOutbox } from "./lib/mailer.js";
 
 export function createApp() {
   const app = express();
@@ -45,6 +46,13 @@ export function createApp() {
   api.use("/workout-session", requireAuth, sessionsRouter);
   api.use("/progress", requireAuth, progressRouter);
   api.use("/ai", requireAuth, aiRouter);
+  // Local development only: read emails the console mailer "sent" (used by e2e tests).
+  if (env.NODE_ENV === "development" && getDevOutbox()) {
+    api.get("/dev/mail", (req, res) => {
+      const to = String(req.query.to ?? "").toLowerCase();
+      res.json({ emails: getDevOutbox()!.filter((e) => !to || e.to.toLowerCase() === to) });
+    });
+  }
   api.use(notFoundHandler);
   app.use(env.API_PREFIX || "/", api);
 

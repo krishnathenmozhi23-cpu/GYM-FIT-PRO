@@ -9,12 +9,14 @@ import {
   workoutLocationSchema,
 } from "./enums.js";
 
+const newPassword = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .max(128, "Password must be at most 128 characters");
+
 export const registerSchema = z.object({
   email: z.email().max(254).transform((v) => v.trim().toLowerCase()),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .max(128, "Password must be at most 128 characters"),
+  password: newPassword,
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
@@ -23,6 +25,12 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(128),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
+
+export const forgotPasswordSchema = z.object({ email: z.email().transform((v) => v.trim().toLowerCase()) });
+export const resetPasswordSchema = z.object({ token: z.string().min(20).max(200), password: newPassword });
+export const verifyEmailSchema = z.object({ token: z.string().min(20).max(200) });
+export const changePasswordSchema = z.object({ currentPassword: z.string().min(1).max(128), newPassword });
+export const deleteAccountSchema = z.object({ password: z.string().min(1).max(128) });
 
 export const profileInputSchema = z.object({
   name: z.string().trim().min(1).max(60),
@@ -56,5 +64,6 @@ export interface Profile extends ProfileInput {
 export interface AuthUser {
   id: string;
   email: string;
+  emailVerified: boolean;
   onboardingCompleted: boolean;
 }

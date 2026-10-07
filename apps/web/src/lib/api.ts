@@ -2,6 +2,9 @@ import type { ApiErrorBody } from "@gymfit/shared";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "/api";
 
+/** Absolute URL for links that bypass fetch (e.g. file downloads). */
+export const apiUrl = (path: string) => `${BASE}${path}`;
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,

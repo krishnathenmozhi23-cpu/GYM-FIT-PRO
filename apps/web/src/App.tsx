@@ -6,6 +6,9 @@ import { AuthProvider, useAuth } from "./state/auth";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const AuthPage = lazy(() => import("./features/auth/AuthPage").then((m) => ({ default: m.AuthPage })));
+const ForgotPasswordPage = lazy(() => import("./features/auth/AccountLinkPages").then((m) => ({ default: m.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import("./features/auth/AccountLinkPages").then((m) => ({ default: m.ResetPasswordPage })));
+const VerifyEmailPage = lazy(() => import("./features/auth/AccountLinkPages").then((m) => ({ default: m.VerifyEmailPage })));
 const OnboardingPage = lazy(() => import("./features/onboarding/OnboardingPage").then((m) => ({ default: m.OnboardingPage })));
 
 const HomePage = lazy(() => import("./features/home/HomePage"));
@@ -42,6 +45,9 @@ export function App() {
             <Routes>
               <Route path="/login" element={<GuestOnly><AuthPage mode="login" /></GuestOnly>} />
               <Route path="/register" element={<GuestOnly><AuthPage mode="register" /></GuestOnly>} />
+              <Route path="/forgot-password" element={<GuestOnly><ForgotPasswordPage /></GuestOnly>} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/onboarding" element={<RequireAuth allowIncomplete><OnboardingPage /></RequireAuth>} />
               <Route element={<RequireAuth><AppShell /></RequireAuth>}>
                 <Route index element={<HomePage />} />

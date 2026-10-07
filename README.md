@@ -100,6 +100,10 @@ All routes except `/auth/*` and `/health` require auth — an httpOnly session c
 | Method & path | Purpose |
 |---|---|
 | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` | Authentication |
+| `POST /auth/forgot-password`, `POST /auth/reset-password` | Password reset via single-use emailed link (60 min); signs out all sessions |
+| `POST /auth/verify-email`, `POST /auth/verify-email/resend` | Email verification (24 h link) |
+| `POST /auth/change-password`, `POST /auth/sign-out-everywhere` | Session-revoking account security |
+| `GET /auth/export`, `POST /auth/delete-account` | Download all your data as JSON; permanent deletion (password required) |
 | `GET /profile`, `POST /profile` (onboarding), `PUT /profile` (partial) | Profile, goal, equipment, schedule, limitations |
 | `GET /exercises?q&muscle&equipment&difficulty&category&availableOnly`, `GET /exercises/:id` | Library + alternatives |
 | `GET /workouts/plan`, `POST /workouts/plan` | Active plan; regenerate with the engine only |
@@ -120,6 +124,12 @@ Differences from the original endpoint sketch: session completion lives at `POST
 
 `users`, `user_profiles`, `fitness_goals` (one active), `exercises`, `workout_plans` (one active), `workouts` (plan days), `workout_exercises`, `workout_sessions`, `session_exercises` (snapshot of the prescription so history stays correct after the plan adapts), `exercise_sets`, `progress_records` (weight history — the only place body weight is stored), `body_measurements`, `ai_conversations`, `ai_messages`, `ai_recommendations` (audit log of every AI/engine recommendation, including rejected AI output and the reasons). See `apps/api/src/db/migrations`.
 
+## Accounts and email
+
+Sessions are JWTs that carry a per-user `session_version`; changing or resetting a password, or "sign out everywhere", bumps the version and every older token stops working. Reset and verification links are random 256-bit tokens; only their SHA-256 hash is stored, they are single-use, and requesting a new one revokes the old. `forgot-password` responds identically whether or not the email exists.
+
+Email goes through the `Mailer` interface (`apps/api/src/lib/mailer.ts`). In development the **console mailer** logs emails instead of sending them, and `GET /dev/mail` exposes them (development only, used by the e2e tests). In production the default is `disabled`, and the reset/verification endpoints return `503` rather than pretending to send — **plug in a real provider before launch.**
+
 ## Design decisions worth knowing
 
 - **Streaks are counted in weeks** (consecutive weeks hitting the weekly target). A day streak would penalise planned rest days.
@@ -131,5 +141,5 @@ Differences from the original endpoint sketch: session completion lives at `POST
 
 - The Anthropic provider is type-checked against the SDK and the whole AI pipeline is tested with fake providers, but it has not yet been exercised against the live API in this repository's test suite (it needs `ANTHROPIC_API_KEY`).
 - The web client is a responsive web app; there is no native (Flutter) client yet. The REST API supports Bearer tokens for one.
-- No password reset / email verification yet.
+- No real email provider is implemented yet (see "Accounts and email").
 - Single-language (English), metric units only.
