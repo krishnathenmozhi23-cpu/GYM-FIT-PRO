@@ -65,7 +65,7 @@ describe("AI workout plan", () => {
     const { rows } = await pool.query(
       "SELECT validation_errors FROM ai_recommendations WHERE validation_status = 'rejected' ORDER BY created_at DESC LIMIT 1",
     );
-    expect(JSON.stringify(rows[0].validation_errors)).toMatch(/Barbell Overhead Press is not allowed/);
+    expect(JSON.stringify(rows[0]!.validation_errors)).toMatch(/Barbell Overhead Press is not allowed/);
   });
 
   it("falls back when the provider refuses or errors", async () => {

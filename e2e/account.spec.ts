@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
-import { registerAndOnboard } from "./helpers";
+import { registerAndOnboard, saveAccount } from "./helpers";
 
 async function latestLink(request: APIRequestContext, email: string, path: string): Promise<string> {
   const res = await request.get(`/api/dev/mail?to=${encodeURIComponent(email)}`);
@@ -9,10 +9,11 @@ async function latestLink(request: APIRequestContext, email: string, path: strin
   return match!;
 }
 
-test("verify email, reset a forgotten password, and log in with it", async ({ page, request }) => {
-  const email = await registerAndOnboard(page);
+test("save a guest account, verify email, reset a forgotten password, and log back in", async ({ page, request }) => {
+  await registerAndOnboard(page);
   await page.getByRole("link", { name: "Profile" }).click();
-  await expect(page.getByText("Not verified")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Save your progress" })).toBeVisible();
+  const email = await saveAccount(page);
 
   await page.goto(await latestLink(request, email, "verify-email"));
   await expect(page.getByText("Your email is confirmed.")).toBeVisible();
@@ -21,6 +22,7 @@ test("verify email, reset a forgotten password, and log in with it", async ({ pa
 
   // Log out, then use "Forgot password?"
   await page.getByRole("button", { name: "Log out" }).click();
+  await page.getByRole("link", { name: "Log in" }).click(); // welcome → login
   await page.getByRole("link", { name: "Forgot password?" }).click();
   await page.getByLabel("Email").fill(email);
   await page.getByRole("button", { name: "Send reset link" }).click();
@@ -39,19 +41,34 @@ test("verify email, reset a forgotten password, and log in with it", async ({ pa
   await expect(page.getByText(/Good (morning|afternoon|evening)/)).toBeVisible();
 });
 
-test("delete account removes access", async ({ page }) => {
-  const email = await registerAndOnboard(page);
+test("guest can delete their data without a password; logging out warns first", async ({ page }) => {
+  await registerAndOnboard(page);
   await page.getByRole("link", { name: "Profile" }).click();
+  await page.getByRole("button", { name: "Log out" }).click();
+  await expect(page.getByText(/won't be able to get back to your plan/)).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
+
   await page.getByRole("button", { name: "Delete account" }).click();
   const sheet = page.getByRole("dialog", { name: "Delete your account?" });
-  await sheet.getByLabel("Password").fill("e2e-password-123");
+  await expect(sheet.getByLabel("Password")).toHaveCount(0);
   const submit = sheet.getByRole("button", { name: "Permanently delete account" });
   await expect(submit).toBeDisabled();
   await sheet.getByLabel(/Type "DELETE"/).fill("DELETE");
-  await page.screenshot({ path: "test-results/account-delete.png" });
   await submit.click();
-  await expect(page.getByRole("button", { name: "Log in" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Get started" })).toBeVisible();
+});
 
+test("saved account can be deleted with its password", async ({ page }) => {
+  await registerAndOnboard(page);
+  const email = await saveAccount(page);
+  await page.getByRole("button", { name: "Delete account" }).click();
+  const sheet = page.getByRole("dialog", { name: "Delete your account?" });
+  await sheet.getByLabel("Password").fill("e2e-password-123");
+  await sheet.getByLabel(/Type "DELETE"/).fill("DELETE");
+  await sheet.getByRole("button", { name: "Permanently delete account" }).click();
+  await expect(page.getByRole("button", { name: "Get started" })).toBeVisible();
+
+  await page.goto("/login");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("e2e-password-123");
   await page.getByRole("button", { name: "Log in" }).click();

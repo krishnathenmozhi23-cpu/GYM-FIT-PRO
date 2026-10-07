@@ -30,7 +30,10 @@ export const forgotPasswordSchema = z.object({ email: z.email().transform((v) =>
 export const resetPasswordSchema = z.object({ token: z.string().min(20).max(200), password: newPassword });
 export const verifyEmailSchema = z.object({ token: z.string().min(20).max(200) });
 export const changePasswordSchema = z.object({ currentPassword: z.string().min(1).max(128), newPassword });
-export const deleteAccountSchema = z.object({ password: z.string().min(1).max(128) });
+/** Guests (no password) may omit the password. */
+export const deleteAccountSchema = z.object({ password: z.string().max(128).optional() });
+/** Add an email + password to a guest account. */
+export const claimAccountSchema = registerSchema;
 
 export const profileInputSchema = z.object({
   name: z.string().trim().min(1).max(60),
@@ -56,14 +59,17 @@ export type ProfileUpdate = z.infer<typeof profileUpdateSchema>;
 
 export interface Profile extends ProfileInput {
   userId: string;
-  email: string;
+  /** Null for guest accounts. */
+  email: string | null;
   onboardingCompleted: boolean;
   updatedAt: string;
 }
 
 export interface AuthUser {
   id: string;
-  email: string;
+  /** Null for guest accounts (started without email/password). */
+  email: string | null;
+  isGuest: boolean;
   emailVerified: boolean;
   onboardingCompleted: boolean;
 }

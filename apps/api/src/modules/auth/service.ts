@@ -10,8 +10,8 @@ import { signToken } from "./tokens.js";
 
 interface UserRow {
   id: string;
-  email: string;
-  password_hash: string;
+  email: string | null;
+  password_hash: string | null;
   session_version: number;
   email_verified_at: Date | null;
   onboarding_completed: boolean | null;
@@ -24,6 +24,7 @@ const USER_SELECT = `
 const toAuthUser = (r: UserRow): AuthUser => ({
   id: r.id,
   email: r.email,
+  isGuest: r.email === null,
   emailVerified: r.email_verified_at !== null,
   onboardingCompleted: r.onboarding_completed ?? false,
 });
@@ -97,6 +98,7 @@ export async function login(input: LoginInput): Promise<{ user: AuthUser; token:
   const { rows } = await pool.query<UserRow>(`${USER_SELECT} WHERE lower(u.email) = $1`, [input.email]);
   const row = rows[0];
   const valid = await verifyPassword(input.password, row?.password_hash ?? (await dummyHash));
+  // (guest rows have no email, so they never match a login lookup)
   // Same error for unknown email and wrong password to avoid account enumeration.
   if (!row || !valid) {
     throw unauthorized("Invalid email or password");
@@ -104,8 +106,51 @@ export async function login(input: LoginInput): Promise<{ user: AuthUser; token:
   return { user: toAuthUser(row), token: await signToken(row.id, row.session_version) };
 }
 
-export async function getAuthUser(userId: string): Promise<AuthUser> {
-  return toAuthUser(await loadUser(userId));
+/** Starts an account with no email or password. */
+export async function createGuest(): Promise<{ user: AuthUser; token: string }> {
+  const { rows } = await pool.query<{ id: string }>("INSERT INTO users DEFAULT VALUES RETURNING id");
+  const row = await loadUser(rows[0]!.id);
+  return { user: toAuthUser(row), token: await signToken(row.id, row.session_version, true) };
+}
+
+/** Adds an email + password to a guest account, keeping all its data. */
+export async function claimAccount(userId: string, email: string, password: string): Promise<{ user: AuthUser; token: string }> {
+  const user = await loadUser(userId);
+  if (user.email !== null) throw conflict("This account already has an email and password");
+  const passwordHash = await hashPassword(password);
+  try {
+    await pool.query("UPDATE users SET email = $2, password_hash = $3, updated_at = now() WHERE id = $1", [userId, email, passwordHash]);
+  } catch (err) {
+    if ((err as { code?: string }).code === "23505") throw conflict("An account with this email already exists — log in to it instead");
+    throw err;
+  }
+  if (getMailer().enabled) {
+    await sendVerificationEmail(userId).catch((err) => logger.warn({ err }, "Could not send verification email"));
+  }
+  const row = await loadUser(userId);
+  return { user: toAuthUser(row), token: await signToken(row.id, row.session_version) };
+}
+
+/** Current user; also records activity and, for guests, issues a refreshed (sliding) session. */
+export async function getAuthUser(userId: string): Promise<{ user: AuthUser; refreshedToken: string | null }> {
+  const row = await loadUser(userId);
+  await pool.query("UPDATE users SET last_seen_at = now() WHERE id = $1 AND last_seen_at < now() - interval '1 hour'", [userId]);
+  const user = toAuthUser(row);
+  return { user, refreshedToken: user.isGuest ? await signToken(row.id, row.session_version, true) : null };
+}
+
+/**
+ * Removes guest accounts that never finished onboarding and have been
+ * inactive for `days`. Guests with a profile are kept: their session is the
+ * only way back to their data and it may simply be a quiet month.
+ */
+export async function deleteAbandonedGuests(days = 7): Promise<number> {
+  const { rowCount } = await pool.query(
+    `DELETE FROM users u WHERE u.email IS NULL AND u.last_seen_at < now() - make_interval(days => $1)
+       AND NOT EXISTS (SELECT 1 FROM user_profiles p WHERE p.user_id = u.id AND p.onboarding_completed)`,
+    [days],
+  );
+  return rowCount ?? 0;
 }
 
 /* ---------------- password reset ---------------- */
@@ -142,6 +187,7 @@ export async function resetPassword(rawToken: string, password: string): Promise
 export async function sendVerificationEmail(userId: string): Promise<void> {
   const mailer = requireMail();
   const user = await loadUser(userId);
+  if (user.email === null) throw badRequest("Add an email to your account first");
   if (user.email_verified_at) return;
   const token = await issueToken(pool, userId, "email_verify");
   await mailer.send({
@@ -160,8 +206,11 @@ export async function verifyEmail(rawToken: string): Promise<void> {
 
 /* ---------------- signed-in account management ---------------- */
 
-async function assertPassword(user: UserRow, password: string) {
-  if (!(await verifyPassword(password, user.password_hash))) throw new AppError(403, "wrong_password", "Current password is incorrect");
+async function assertPassword(user: UserRow, password: string | undefined) {
+  if (user.password_hash === null) throw badRequest("This account doesn't have a password yet — add an email and password first");
+  if (!password || !(await verifyPassword(password, user.password_hash))) {
+    throw new AppError(403, "wrong_password", "Current password is incorrect");
+  }
 }
 
 /** Changes the password, revokes all other sessions and returns a fresh token for this one. */
@@ -181,9 +230,10 @@ export async function signOutEverywhere(userId: string): Promise<void> {
   await pool.query("UPDATE users SET session_version = session_version + 1 WHERE id = $1", [userId]);
 }
 
-/** Permanently deletes the account; every user-owned row cascades. */
-export async function deleteAccount(userId: string, password: string): Promise<void> {
-  await assertPassword(await loadUser(userId), password);
+/** Permanently deletes the account; every user-owned row cascades. Guests have no password to confirm. */
+export async function deleteAccount(userId: string, password: string | undefined): Promise<void> {
+  const user = await loadUser(userId);
+  if (user.password_hash !== null) await assertPassword(user, password);
   await pool.query("DELETE FROM users WHERE id = $1", [userId]);
 }
 

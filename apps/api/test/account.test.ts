@@ -133,7 +133,7 @@ describe("signed-in account management", () => {
       "body_measurements", "ai_conversations", "ai_recommendations", "auth_tokens"];
     for (const t of tables) {
       const { rows } = await pool.query(`SELECT count(*)::int AS n FROM ${t} WHERE user_id = $1`, [me.id]);
-      expect(rows[0].n, t).toBe(0);
+      expect(rows[0]!.n, t).toBe(0);
     }
   });
 });

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { exerciseSchema } from "@gymfit/shared";
-import { pool } from "./pool.js";
+import { pool, withTransaction } from "./pool.js";
 import { EXERCISE_SEED } from "./seed/exercises.js";
 import { logger } from "../lib/logger.js";
 
@@ -14,11 +14,9 @@ export async function seedExercises(): Promise<number> {
     ids.add(e.id);
   }
 
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
+  await withTransaction(async (db) => {
     for (const e of EXERCISE_SEED) {
-      await client.query(
+      await db.query(
         `INSERT INTO exercises (id, name, category, pattern, mechanics, primary_muscles, secondary_muscles,
            equipment, difficulty, measure, loaded, contraindications, instructions, common_mistakes)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
@@ -35,13 +33,7 @@ export async function seedExercises(): Promise<number> {
         ],
       );
     }
-    await client.query("COMMIT");
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
+  });
   return EXERCISE_SEED.length;
 }
 

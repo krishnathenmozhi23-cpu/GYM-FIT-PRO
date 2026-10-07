@@ -43,6 +43,7 @@ export default function ProfilePage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [planNotice, setPlanNotice] = useState<string | null>(null);
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   if (loading) return <LoadingState />;
   if (error || !data) return <ErrorState message={error ?? "Couldn't load profile"} onRetry={reload} />;
@@ -86,7 +87,7 @@ export default function ProfilePage() {
         <span className="brand-mark" style={{ width: 52, height: 52, fontSize: 22, fontWeight: 800 }}>{profile.name[0]?.toUpperCase()}</span>
         <div className="stack-sm grow">
           <span style={{ fontWeight: 800, fontSize: 18 }}>{profile.name}</span>
-          <span className="small muted" style={{ overflowWrap: "anywhere" }}>{user?.email}</span>
+          <span className="small muted" style={{ overflowWrap: "anywhere" }}>{user?.email ?? "Guest account"}</span>
         </div>
       </div>
       {planNotice && <Alert kind="info">{planNotice}</Alert>}
@@ -124,9 +125,24 @@ export default function ProfilePage() {
 
       <AccountSection />
 
-      <Button variant="secondary" onClick={() => void logout()}>
+      <Button variant="secondary" onClick={() => (user?.isGuest ? setConfirmLogout(true) : void logout())}>
         <LogOut size={16} /> Log out
       </Button>
+
+      <Sheet open={confirmLogout} onClose={() => setConfirmLogout(false)} title="Log out of a guest account?">
+        <div className="stack">
+          <Alert kind="warn">
+            This account has no email or password, so after logging out you won't be able to get back to your plan and history.
+            Save your account above first if you want to keep them.
+          </Alert>
+          <Button variant="danger" block onClick={() => void logout()}>
+            Log out anyway
+          </Button>
+          <Button variant="secondary" block onClick={() => setConfirmLogout(false)}>
+            Cancel
+          </Button>
+        </div>
+      </Sheet>
 
       {editing && draft && (
         <Sheet open onClose={() => setEditing(null)} title={editing.title} footer={<Button block loading={busy} onClick={() => void save()}>Save{editing.affectsPlan ? " & update plan" : ""}</Button>}>

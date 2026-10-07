@@ -2,6 +2,7 @@ node_modules/
 dist/
 coverage/
 .env
+apps/api/.data/
 .env.*
 !.env.example
 *.log

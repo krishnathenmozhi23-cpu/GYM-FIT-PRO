@@ -49,6 +49,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const data = (await res.json().catch(() => null)) as unknown;
   if (!res.ok) {
     const err = (data as ApiErrorBody | null)?.error;
+    // 502/503/504 without our JSON error body = a proxy/gateway couldn't reach the API server.
+    if (!err && [502, 503, 504].includes(res.status)) {
+      throw new ApiError(res.status, "server_unreachable", "Can't reach the GymFit server. If you're running it locally, make sure the API is running (npm run dev).");
+    }
     if (res.status === 401 && !path.startsWith("/auth/")) onUnauthorized?.();
     throw new ApiError(res.status, err?.code ?? "http_error", err?.message ?? `Request failed (${res.status})`, err?.details);
   }

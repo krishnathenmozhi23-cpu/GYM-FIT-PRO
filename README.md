@@ -54,23 +54,26 @@ Adding a provider = implementing `LlmProvider` in `apps/api/src/ai/providers/`.
 
 ## Getting started
 
-Requirements: Node ≥ 22, PostgreSQL ≥ 14.
+Requirements: Node ≥ 22. That's it for local development:
 
 ```bash
 npm install
-
-# Database (adjust to your setup)
-createuser -P gymfit          # password: gymfit
-createdb -O gymfit gymfit
-createdb -O gymfit gymfit_test   # for API tests
-
-cp apps/api/.env.example apps/api/.env   # set JWT_SECRET (≥ 32 chars)
-npm run db:migrate
-npm run db:seed                          # exercise library (idempotent)
-
-npm run dev:api    # http://localhost:4000
-npm run dev:web    # http://localhost:5173 (proxies /api → :4000)
+npm run dev        # API on :4000 + web on http://localhost:5173
 ```
+
+With no `apps/api/.env`, the API uses an **embedded PostgreSQL (PGlite)** stored in `apps/api/.data/`, generates a development secret, and applies migrations and the exercise seed on startup. Delete `apps/api/.data/` to start fresh.
+
+To use a real PostgreSQL server (≥ 13) instead:
+
+```bash
+createuser -P gymfit              # password: gymfit
+createdb -O gymfit gymfit
+createdb -O gymfit gymfit_test    # for `npm test`
+cp apps/api/.env.example apps/api/.env   # set DATABASE_URL (and JWT_SECRET)
+npm run dev
+```
+
+If the web app says "Can't reach the GymFit server", the API isn't running — check the `[api]` lines in the `npm run dev` output.
 
 ### Production (single process)
 
@@ -89,7 +92,9 @@ Run behind HTTPS (the session cookie is `Secure` in production).
 | Command | What it does |
 |---|---|
 | `npm run typecheck` | Type-check all packages |
+| `npm run dev` | API + web together (zero-config with embedded PGlite) |
 | `npm test` | API unit + integration tests (needs `gymfit_test` DB; override with `TEST_DATABASE_URL`) and web unit tests |
+| `TEST_DB=pglite npm test -w @gymfit/api` | Same API suite on in-memory embedded PostgreSQL — no database server needed |
 | `npm run test:e2e` | Playwright e2e (starts dev servers; set `E2E_BASE_URL` to test a running build; `PLAYWRIGHT_CHROMIUM_PATH` for a custom Chromium) |
 | `npm run build` | Bundle API (esbuild) and web (Vite) |
 
@@ -99,7 +104,9 @@ All routes except `/auth/*` and `/health` require auth — an httpOnly session c
 
 | Method & path | Purpose |
 |---|---|
-| `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` | Authentication |
+| `POST /auth/guest` | Start without email/password (guest account; long-lived, sliding session) |
+| `POST /auth/claim` | Add email + password to a guest account, keeping all data |
+| `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` | Authentication (register is for API clients; the web app starts as a guest) |
 | `POST /auth/forgot-password`, `POST /auth/reset-password` | Password reset via single-use emailed link (60 min); signs out all sessions |
 | `POST /auth/verify-email`, `POST /auth/verify-email/resend` | Email verification (24 h link) |
 | `POST /auth/change-password`, `POST /auth/sign-out-everywhere` | Session-revoking account security |
@@ -125,6 +132,8 @@ Differences from the original endpoint sketch: session completion lives at `POST
 `users`, `user_profiles`, `fitness_goals` (one active), `exercises`, `workout_plans` (one active), `workouts` (plan days), `workout_exercises`, `workout_sessions`, `session_exercises` (snapshot of the prescription so history stays correct after the plan adapts), `exercise_sets`, `progress_records` (weight history — the only place body weight is stored), `body_measurements`, `ai_conversations`, `ai_messages`, `ai_recommendations` (audit log of every AI/engine recommendation, including rejected AI output and the reasons). See `apps/api/src/db/migrations`.
 
 ## Accounts and email
+
+**No sign-up to start.** "Get started" creates a guest account (no email or password); the session cookie lasts a year and is refreshed on each visit. Guests can add an email and password any time in Profile ("Save your progress") to keep their data and log in elsewhere. Logging out of a guest account warns first, since the data can't be recovered without credentials. Guest accounts that never finish onboarding are deleted after 7 days of inactivity.
 
 Sessions are JWTs that carry a per-user `session_version`; changing or resetting a password, or "sign out everywhere", bumps the version and every older token stops working. Reset and verification links are random 256-bit tokens; only their SHA-256 hash is stored, they are single-use, and requesting a new one revokes the old. `forgot-password` responds identically whether or not the email exists.
 

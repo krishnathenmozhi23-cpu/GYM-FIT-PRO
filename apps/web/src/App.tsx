@@ -5,6 +5,7 @@ import { LoadingState } from "./components/ui";
 import { AuthProvider, useAuth } from "./state/auth";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
+const WelcomePage = lazy(() => import("./features/auth/WelcomePage").then((m) => ({ default: m.WelcomePage })));
 const AuthPage = lazy(() => import("./features/auth/AuthPage").then((m) => ({ default: m.AuthPage })));
 const ForgotPasswordPage = lazy(() => import("./features/auth/AccountLinkPages").then((m) => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import("./features/auth/AccountLinkPages").then((m) => ({ default: m.ResetPasswordPage })));
@@ -24,7 +25,7 @@ function RequireAuth({ children, allowIncomplete = false }: { children: ReactNod
   const { user, ready } = useAuth();
   const location = useLocation();
   if (!ready) return <LoadingState />;
-  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  if (!user) return <Navigate to="/welcome" replace state={{ from: location.pathname }} />;
   if (!allowIncomplete && !user.onboardingCompleted) return <Navigate to="/onboarding" replace />;
   return <>{children}</>;
 }
@@ -43,8 +44,9 @@ export function App() {
         <BrowserRouter>
           <Suspense fallback={<LoadingState />}>
             <Routes>
-              <Route path="/login" element={<GuestOnly><AuthPage mode="login" /></GuestOnly>} />
-              <Route path="/register" element={<GuestOnly><AuthPage mode="register" /></GuestOnly>} />
+              <Route path="/welcome" element={<GuestOnly><WelcomePage /></GuestOnly>} />
+              <Route path="/login" element={<GuestOnly><AuthPage /></GuestOnly>} />
+              <Route path="/register" element={<Navigate to="/welcome" replace />} />
               <Route path="/forgot-password" element={<GuestOnly><ForgotPasswordPage /></GuestOnly>} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />

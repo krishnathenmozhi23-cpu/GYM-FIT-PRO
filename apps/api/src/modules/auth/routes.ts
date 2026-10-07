@@ -2,6 +2,7 @@ import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import {
   changePasswordSchema,
+  claimAccountSchema,
   deleteAccountSchema,
   forgotPasswordSchema,
   loginSchema,
@@ -25,6 +26,7 @@ const limiter = (limit: number) =>
     message: { error: { code: "rate_limited", message: "Too many attempts, try again later" } },
   });
 const authLimiter = limiter(20);
+const guestLimiter = limiter(10);
 const emailLimiter = limiter(5);
 const clearCookie = (res: import("express").Response) => res.clearCookie(AUTH_COOKIE, { ...cookieOptions(), maxAge: undefined });
 
@@ -40,13 +42,32 @@ authRouter.post("/login", authLimiter, async (req, res) => {
   res.json({ user, token });
 });
 
+/** Start without an email or password. */
+authRouter.post("/guest", guestLimiter, async (_req, res) => {
+  const { user, token } = await auth.createGuest();
+  res.cookie(AUTH_COOKIE, token, cookieOptions(true));
+  res.status(201).json({ user, token });
+});
+
+/** Turn a guest account into a regular one by adding email + password. */
+authRouter.post("/claim", requireAuth, authLimiter, async (req, res) => {
+  const { email, password } = claimAccountSchema.parse(req.body);
+  const { user, token } = await auth.claimAccount(currentUserId(req), email, password);
+  res.cookie(AUTH_COOKIE, token, cookieOptions());
+  res.json({ user, token });
+});
+
 authRouter.post("/logout", (_req, res) => {
   clearCookie(res);
   res.status(204).end();
 });
 
 authRouter.get("/me", requireAuth, async (req, res) => {
-  res.json({ user: await auth.getAuthUser(currentUserId(req)) });
+  const { user, refreshedToken } = await auth.getAuthUser(currentUserId(req));
+  // Guests: slide the session forward so an active guest never loses their data.
+  // Only for cookie sessions; native clients manage their own bearer token.
+  if (refreshedToken && !req.headers.authorization) res.cookie(AUTH_COOKIE, refreshedToken, cookieOptions(true));
+  res.json({ user });
 });
 
 /* Password reset (unauthenticated) */
