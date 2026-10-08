@@ -157,7 +157,8 @@ export function FormCheckCamera({
     setStage("summary");
   }
 
-  const detected = Boolean(summary && (summary.reps > 0 || summary.durationSeconds > 0));
+  // Something worth saving: reps for rep exercises, hold time for holds.
+  const detected = Boolean(summary && (profile.mode === "hold" ? summary.durationSeconds > 0 : summary.reps > 0));
 
   async function save() {
     // Nothing to save in practice mode or when no reps/hold were detected.
@@ -301,7 +302,7 @@ export function FormCheckCamera({
           {summary.issues.length === 0 ? (
             <Alert kind="info">
               <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
-              <span>{summary.reps > 0 || summary.durationSeconds > 0 ? "No form issues detected. Nice work." : "No reps were detected. Check the camera setup and try again."}</span>
+              <span>{detected ? "No form issues detected. Nice work." : profile.mode === "hold" ? "No hold was detected. Check the camera setup and try again." : "No reps were detected. Check the camera setup and try again."}</span>
             </Alert>
           ) : (
             <div className="stack-sm">
