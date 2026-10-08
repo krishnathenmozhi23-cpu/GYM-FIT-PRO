@@ -27,6 +27,8 @@ export const workoutPlanRequestSchema = z.object({
 });
 
 export const dailyWorkoutRequestSchema = z.object({
+  /** Condense this plan workout instead of today's. */
+  workoutId: z.uuid().optional(),
   minutes: z.number().int().min(10).max(120).optional(),
   focus: z.enum(["upper", "lower", "full_body", "push", "pull", "legs", "core", "conditioning"]).optional(),
 });
@@ -122,4 +124,27 @@ export interface AiStatus {
   provider: "anthropic" | "mock" | "none";
   model: string | null;
   llmEnabled: boolean;
+}
+
+export interface DailyWorkoutResponse {
+  workout: {
+    title: string;
+    focus: string[];
+    estimatedMinutes: number;
+    exercises: (import("./workout.js").PrescribedExercise & { exerciseName: string })[];
+  };
+  /** The plan workout this was derived from, if any. */
+  basedOnWorkoutId: string | null;
+  meta: AiMeta;
+}
+
+export interface RecommendExerciseResponse {
+  exercise: import("./exercise.js").Exercise;
+  alternatives: import("./exercise.js").ExerciseAlternative[];
+  meta: AiMeta;
+}
+
+export interface ConversationView {
+  id: string;
+  messages: ChatMessageView[];
 }

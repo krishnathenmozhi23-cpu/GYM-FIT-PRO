@@ -1,7 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { pool } from "./pool.js";
+import { pool, withTransaction } from "./pool.js";
 import { logger } from "../lib/logger.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -22,33 +22,17 @@ export async function migrate(): Promise<string[]> {
   for (const file of files) {
     if (applied.has(file)) continue;
     const sql = await readFile(path.join(MIGRATIONS_DIR, file), "utf8");
-    const client = await pool.connect();
     try {
-      await client.query("BEGIN");
-      await client.query(sql);
-      await client.query("INSERT INTO schema_migrations (name) VALUES ($1)", [file]);
-      await client.query("COMMIT");
-      newlyApplied.push(file);
-      logger.info({ file }, "Applied migration");
+      await withTransaction(async (db) => {
+        await db.query(sql);
+        await db.query("INSERT INTO schema_migrations (name) VALUES ($1)", [file]);
+      });
     } catch (err) {
-      await client.query("ROLLBACK");
       throw new Error(`Migration ${file} failed: ${(err as Error).message}`);
-    } finally {
-      client.release();
     }
+    newlyApplied.push(file);
+    logger.info({ file }, "Applied migration");
   }
   return newlyApplied;
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
-  migrate()
-    .then((applied) => {
-      logger.info({ count: applied.length }, "Migrations complete");
-      return pool.end();
-    })
-    .catch((err) => {
-      logger.error({ err }, "Migration failed");
-      process.exit(1);
-    });
-}

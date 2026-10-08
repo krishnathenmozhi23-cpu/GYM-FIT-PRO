@@ -9,7 +9,7 @@ import { notFound } from "../../lib/errors.js";
 
 interface ProfileRow {
   user_id: string;
-  email: string;
+  email: string | null;
   name: string;
   age: number;
   gender: Profile["gender"];

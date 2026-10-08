@@ -226,6 +226,6 @@ export function Sheet({
 export function SourceBadge({ source }: { source: "ai" | "rule_engine" | "dev_mock" | null | undefined }) {
   if (source === "ai") return <span className="badge badge-accent">AI generated</span>;
   if (source === "dev_mock") return <span className="badge badge-orange">Dev mock — not real AI</span>;
-  if (source === "rule_engine") return <span className="badge badge-blue">Smart engine</span>;
+  if (source === "rule_engine") return <span className="badge badge-blue">Built-in engine</span>;
   return null;
 }

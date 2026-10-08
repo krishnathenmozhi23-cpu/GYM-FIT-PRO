@@ -7,6 +7,10 @@ interface AuthContextValue {
   ready: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
   register: (email: string, password: string) => Promise<AuthUser>;
+  /** Start without email/password. */
+  startAsGuest: () => Promise<AuthUser>;
+  /** Add email + password to the current guest account. */
+  claim: (email: string, password: string) => Promise<AuthUser>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -45,6 +49,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       register: async (email, password) => {
         const res = await api.post<{ user: AuthUser }>("/auth/register", { email, password });
+        setUser(res.user);
+        return res.user;
+      },
+      startAsGuest: async () => {
+        const res = await api.post<{ user: AuthUser }>("/auth/guest");
+        setUser(res.user);
+        return res.user;
+      },
+      claim: async (email, password) => {
+        const res = await api.post<{ user: AuthUser }>("/auth/claim", { email, password });
         setUser(res.user);
         return res.user;
       },

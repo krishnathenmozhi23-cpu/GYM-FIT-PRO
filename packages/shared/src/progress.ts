@@ -76,8 +76,8 @@ export interface StrengthSeries {
 
 export interface BmiInfo {
   value: number;
-  /** WHO adult category. Informational only. */
-  category: "underweight" | "healthy" | "overweight" | "obese";
+  /** WHO adult category (null under 18, where adult cut-offs do not apply). Informational only. */
+  category: "underweight" | "healthy" | "overweight" | "obese" | null;
 }
 
 export interface GoalProgress {
@@ -93,8 +93,9 @@ export interface ProgressOverview {
   startWeightKg: number | null;
   bmi: BmiInfo | null;
   totalWorkouts: number;
-  currentStreakDays: number;
-  longestStreakDays: number;
+  /** Consecutive weeks (ending now) in which the weekly workout target was met. */
+  currentStreakWeeks: number;
+  longestStreakWeeks: number;
   thisWeek: { completed: number; target: number };
   goal: GoalProgress;
   weight: WeightPoint[];

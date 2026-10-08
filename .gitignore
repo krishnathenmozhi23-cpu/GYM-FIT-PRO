@@ -2,9 +2,11 @@ node_modules/
 dist/
 coverage/
 .env
+apps/api/.data/
 .env.*
 !.env.example
 *.log
 .DS_Store
 test-results/
 playwright-report/
+apps/web/public/mediapipe/

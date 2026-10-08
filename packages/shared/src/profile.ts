@@ -9,12 +9,14 @@ import {
   workoutLocationSchema,
 } from "./enums.js";
 
+const newPassword = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .max(128, "Password must be at most 128 characters");
+
 export const registerSchema = z.object({
   email: z.email().max(254).transform((v) => v.trim().toLowerCase()),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .max(128, "Password must be at most 128 characters"),
+  password: newPassword,
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
@@ -23,6 +25,15 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(128),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
+
+export const forgotPasswordSchema = z.object({ email: z.email().transform((v) => v.trim().toLowerCase()) });
+export const resetPasswordSchema = z.object({ token: z.string().min(20).max(200), password: newPassword });
+export const verifyEmailSchema = z.object({ token: z.string().min(20).max(200) });
+export const changePasswordSchema = z.object({ currentPassword: z.string().min(1).max(128), newPassword });
+/** Guests (no password) may omit the password. */
+export const deleteAccountSchema = z.object({ password: z.string().max(128).optional() });
+/** Add an email + password to a guest account. */
+export const claimAccountSchema = registerSchema;
 
 export const profileInputSchema = z.object({
   name: z.string().trim().min(1).max(60),
@@ -48,13 +59,17 @@ export type ProfileUpdate = z.infer<typeof profileUpdateSchema>;
 
 export interface Profile extends ProfileInput {
   userId: string;
-  email: string;
+  /** Null for guest accounts. */
+  email: string | null;
   onboardingCompleted: boolean;
   updatedAt: string;
 }
 
 export interface AuthUser {
   id: string;
-  email: string;
+  /** Null for guest accounts (started without email/password). */
+  email: string | null;
+  isGuest: boolean;
+  emailVerified: boolean;
   onboardingCompleted: boolean;
 }

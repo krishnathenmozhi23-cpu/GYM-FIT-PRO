@@ -8,8 +8,8 @@ import type { Exercise } from "@gymfit/shared";
  * user-selected movement limitations that exclude the exercise; they are
  * conservative filters, not medical guidance.
  */
-type Seed = Omit<Exercise, "secondaryMuscles" | "contraindications" | "loaded" | "measure" | "category"> &
-  Partial<Pick<Exercise, "secondaryMuscles" | "contraindications" | "loaded" | "measure" | "category">>;
+type Seed = Omit<Exercise, "secondaryMuscles" | "contraindications" | "loaded" | "measure" | "category" | "videoUrl"> &
+  Partial<Pick<Exercise, "secondaryMuscles" | "contraindications" | "loaded" | "measure" | "category" | "videoUrl">>;
 
 const LOADED_EQUIPMENT = new Set(["barbell", "dumbbell", "machine", "cable", "kettlebell"]);
 
@@ -19,6 +19,7 @@ function ex(s: Seed): Exercise {
     measure: "reps",
     secondaryMuscles: [],
     contraindications: [],
+    videoUrl: null,
     loaded: s.equipment.some((e) => LOADED_EQUIPMENT.has(e)),
     ...s,
   };

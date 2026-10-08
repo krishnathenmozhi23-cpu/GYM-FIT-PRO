@@ -2,7 +2,7 @@
 -- Conventions: UUID primary keys, timestamptz for instants, DATE for calendar
 -- days, CHECK constraints mirror the shared Zod enums.
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- UUIDs use gen_random_uuid(), built into PostgreSQL 13+ (no extension needed).
 
 CREATE TABLE users (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -6,14 +6,17 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
-    "build": "esbuild src/server.ts src/db/migrate.ts src/db/seed.ts --bundle --platform=node --format=esm --target=node22 --outdir=dist --packages=external --alias:@gymfit/shared=../../packages/shared/src/index.ts --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\" && cp -r src/db/migrations dist/migrations",
+    "start:migrate": "node dist/migrate-cli.js",
+    "build": "esbuild src/server.ts src/db/migrate-cli.ts src/db/seed-cli.ts --bundle --platform=node --format=esm --target=node22 --outdir=dist --entry-names=[name] --packages=external --alias:@gymfit/shared=../../packages/shared/src/index.ts --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\" && rm -rf dist/migrations && cp -r src/db/migrations dist/migrations",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "db:migrate": "tsx src/db/migrate.ts",
-    "db:seed": "tsx src/db/seed.ts"
+    "db:migrate": "tsx src/db/migrate-cli.ts",
+    "db:seed": "tsx src/db/seed-cli.ts",
+    "start:seed": "node dist/seed-cli.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
+    "@electric-sql/pglite": "^0.5.8",
     "@gymfit/shared": "^0.1.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

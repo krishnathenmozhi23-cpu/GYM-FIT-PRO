@@ -16,3 +16,14 @@ export function clientToday(req: Request): string {
 }
 
 export { addDays };
+
+import { z } from "zod";
+import { notFound } from "./errors.js";
+
+const uuid = z.uuid();
+/** Route params that must be UUIDs; anything else is simply "not found". */
+export function uuidParam(req: Request, name: string, what = "Resource"): string {
+  const value = req.params[name];
+  if (!uuid.safeParse(value).success) throw notFound(what);
+  return value as string;
+}
