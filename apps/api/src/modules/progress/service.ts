@@ -3,6 +3,7 @@ import { pool } from "../../db/pool.js";
 import { addDays } from "../../lib/dates.js";
 import { bmi, goalProgress, strengthSeries, weekStreak, weeklyActivity, type SessionFact, type SetFact } from "../../engine/analytics.js";
 import { getLibrary } from "../exercises/repository.js";
+import type { FormCheckFact } from "../../engine/insights.js";
 import { getProfile } from "../profile/service.js";
 
 export async function addWeight(userId: string, e: WeightEntryInput): Promise<void> {
@@ -31,7 +32,7 @@ export async function addMeasurement(userId: string, m: MeasurementEntryInput): 
 
 /** Raw facts shared by the progress dashboard and the insight engine. */
 export async function loadProgressFacts(userId: string) {
-  const [weights, measurements, sessions, sets, goal] = await Promise.all([
+  const [weights, measurements, sessions, sets, goal, checks] = await Promise.all([
     pool.query<{ recorded_on: string; weight_kg: number; body_fat_pct: number | null }>(
       "SELECT recorded_on, weight_kg, body_fat_pct FROM progress_records WHERE user_id = $1 ORDER BY recorded_on",
       [userId],
@@ -55,6 +56,11 @@ export async function loadProgressFacts(userId: string) {
       [userId],
     ),
     pool.query<{ created_at: Date }>("SELECT created_at FROM fitness_goals WHERE user_id = $1 AND is_active", [userId]),
+    pool.query<{ exercise_id: string; profile: string; created_at: Date; reps: number; clean_reps: number; issues: { code: string; severity: "risk" | "form" | "tip"; count: number }[] }>(
+      `SELECT exercise_id, profile, created_at, reps, clean_reps, issues FROM form_checks
+       WHERE user_id = $1 AND created_at > now() - interval '60 days' ORDER BY created_at DESC LIMIT 50`,
+      [userId],
+    ),
   ]);
 
   const weightPoints: WeightPoint[] = weights.rows.map((r) => ({ date: r.recorded_on, weightKg: r.weight_kg, bodyFatPct: r.body_fat_pct }));
@@ -66,7 +72,15 @@ export async function loadProgressFacts(userId: string) {
   }));
   const setFacts: SetFact[] = sets.rows.map((r) => ({ exerciseId: r.exercise_id, date: r.performed_on, weightKg: r.weight_kg, reps: r.reps }));
   const goalSince = goal.rows[0]?.created_at.toISOString().slice(0, 10) ?? null;
-  return { weightPoints, measurementPoints, sessionFacts, setFacts, goalSince };
+  const formCheckFacts = checks.rows.map((r) => ({
+    exerciseId: r.exercise_id,
+    profile: r.profile as FormCheckFact["profile"],
+    date: r.created_at.toISOString().slice(0, 10),
+    reps: r.reps,
+    cleanReps: r.clean_reps,
+    issues: r.issues,
+  }));
+  return { weightPoints, measurementPoints, sessionFacts, setFacts, goalSince, formCheckFacts };
 }
 
 export async function getOverview(userId: string, today: string): Promise<ProgressOverview> {

@@ -16,6 +16,7 @@ interface ExerciseRow {
   contraindications: Exercise["contraindications"];
   instructions: string[];
   common_mistakes: string[];
+  video_url: string | null;
 }
 
 const toExercise = (r: ExerciseRow): Exercise => ({
@@ -33,6 +34,7 @@ const toExercise = (r: ExerciseRow): Exercise => ({
   contraindications: r.contraindications,
   instructions: r.instructions,
   commonMistakes: r.common_mistakes,
+  videoUrl: r.video_url,
 });
 
 const CACHE_TTL_MS = 60_000;

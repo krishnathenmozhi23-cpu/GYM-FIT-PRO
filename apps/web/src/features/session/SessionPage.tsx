@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Check, ChevronLeft, ChevronRight, Pause, Play, Plus, Repeat, SkipForward, Timer, Undo2, X } from "lucide-react";
+import { Camera, Check, ChevronLeft, ChevronRight, Pause, Play, PlayCircle, Plus, Repeat, ShieldAlert, SkipForward, Timer, Undo2, X } from "lucide-react";
 import {
+  formProfileFor,
+  issueDef,
   MUSCLE_LABELS,
+  type FormCheckView,
   type AdaptationChange,
   type CompleteSessionResponse,
   type ExerciseDetail,
@@ -15,6 +18,8 @@ import { api, errorMessage } from "../../lib/api";
 import { formatDuration, formatKg, formatReps } from "../../lib/format";
 import { RestTimer } from "./RestTimer";
 import { SessionSummary } from "./SessionSummary";
+import { FormCheckCamera } from "../formcheck/FormCheckCamera";
+import { LearnMovement } from "../formcheck/LearnMovement";
 
 const RATINGS = [
   { value: 1, label: "Very easy" },
@@ -221,6 +226,12 @@ export default function SessionPage() {
         disabled={paused}
         onLog={logSet}
         onUndo={undoSet}
+        onFormCheck={async (result) => {
+          const res = await api.post<{ formCheck: FormCheckView }>(`/workout-session/${session.id}/form-check`, { sessionExerciseId: ex.id, ...result });
+          setSession((s) =>
+            s && { ...s, exercises: s.exercises.map((e) => (e.id === ex.id ? { ...e, formChecks: [...e.formChecks, res.formCheck] } : e)) },
+          );
+        }}
       />
 
       <div className="grid-3">
@@ -278,13 +289,20 @@ function ExerciseCard({
   disabled,
   onLog,
   onUndo,
+  onFormCheck,
 }: {
   ex: SessionExerciseView;
   exerciseElapsed: number;
   disabled: boolean;
   onLog: (v: { reps: number | null; weightKg: number | null; durationSeconds: number | null }) => Promise<void>;
   onUndo: (setId: string) => Promise<void>;
+  onFormCheck: (result: Omit<import("@gymfit/shared").FormCheckResult, "sessionExerciseId">) => Promise<void>;
 }) {
+  const formProfile = formProfileFor(ex.exerciseId);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [learnOpen, setLearnOpen] = useState(false);
+  const [cameraNote, setCameraNote] = useState<string | null>(null);
+  const lastCheck = ex.formChecks[ex.formChecks.length - 1];
   const p = ex.prescription;
   const last = ex.sets[ex.sets.length - 1];
   const timed = ex.measure === "time";
@@ -396,6 +414,55 @@ function ExerciseCard({
         <Button variant="secondary" disabled={disabled || countdown !== null} onClick={() => setCountdown(Number(duration) || 30)}>
           <Timer size={16} /> {countdown !== null ? `${countdown}s — keep going` : `Start ${duration}s timer`}
         </Button>
+      )}
+
+      <div className="grid-2">
+        <Button variant="secondary" small onClick={() => setLearnOpen(true)}>
+          <PlayCircle size={16} /> Watch how
+        </Button>
+        {formProfile ? (
+          <Button variant="secondary" small onClick={() => setCameraOpen(true)} disabled={disabled}>
+            <Camera size={16} /> Check my form
+          </Button>
+        ) : (
+          <span className="small faint" style={{ alignSelf: "center" }}>No camera check for this exercise yet</span>
+        )}
+      </div>
+      {cameraNote && <Alert kind="info">{cameraNote}</Alert>}
+      {lastCheck && (
+        <div className="small row wrap" style={{ gap: 6 }} aria-label="Last form check">
+          {lastCheck.issues.some((i) => i.severity === "risk") && <ShieldAlert size={14} color="var(--danger)" />}
+          <span className="muted">
+            Last camera check: {formProfile?.mode === "hold" ? `${lastCheck.durationSeconds}s held` : `${lastCheck.cleanReps}/${lastCheck.reps} clean reps`}
+          </span>
+          {lastCheck.issues.map((i) => (
+            <span key={i.code} className={`badge ${i.severity === "risk" ? "badge-danger" : i.severity === "form" ? "badge-orange" : ""}`}>
+              {issueDef(lastCheck.profile, i.code)?.label ?? i.code} ×{i.count}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <Sheet open={learnOpen} onClose={() => setLearnOpen(false)} title={`How to: ${ex.exerciseName}`}>
+        <LearnMovement exercise={{ id: ex.exerciseId, name: ex.exerciseName, videoUrl: ex.videoUrl }} />
+      </Sheet>
+
+      {cameraOpen && formProfile && (
+        <FormCheckCamera
+          profile={formProfile}
+          exerciseName={ex.exerciseName}
+          onClose={() => setCameraOpen(false)}
+          onSave={async (result) => {
+            await onFormCheck(result);
+            if (formProfile.mode === "hold" && result.durationSeconds > 0) {
+              setDuration(String(result.durationSeconds));
+              setCameraNote(`Camera timed ${result.durationSeconds}s — check it and tap ✓ to log the set.`);
+            } else if (result.reps > 0) {
+              setReps(String(result.reps));
+              setCameraNote(`Camera counted ${result.reps} reps — check the number and tap ✓ to log the set.`);
+            }
+          }}
+        />
       )}
     </div>
   );

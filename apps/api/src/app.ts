@@ -23,7 +23,27 @@ export function createApp() {
   app.disable("x-powered-by");
   app.set("trust proxy", 1);
 
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          // On-device pose detection compiles WebAssembly.
+          scriptSrc: ["'self'", "'wasm-unsafe-eval'"],
+          // Pose model fallback when it wasn't self-hosted at build time.
+          connectSrc: ["'self'", "https://storage.googleapis.com"],
+          // Reviewed demonstration videos (privacy-enhanced YouTube embeds).
+          frameSrc: ["https://www.youtube-nocookie.com"],
+          mediaSrc: ["'self'", "blob:", "https:"],
+          imgSrc: ["'self'", "data:", "blob:"],
+        },
+      },
+    }),
+  );
+  // The camera is used only by our own pages (form check); never by embeds.
+  app.use((_req, res, next) => {
+    res.setHeader("Permissions-Policy", "camera=(self), microphone=(), geolocation=()");
+    next();
+  });
   app.use(
     cors({
       origin: env.CORS_ORIGIN.split(",").map((o) => o.trim()),

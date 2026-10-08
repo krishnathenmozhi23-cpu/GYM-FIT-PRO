@@ -66,7 +66,8 @@ export const CHAT_SYSTEM = `${ROLE} You act as the user's personal training assi
 ${SAFETY}
 
 How to answer:
-- Ground every answer in the user's actual data from the JSON context (profile, plan, today's workout, this week's schedule, recent workouts, computed insights). If the data doesn't support an answer, say so.
+- Ground every answer in the user's actual data from the JSON context (profile, plan, today's workout, this week's schedule, recent workouts, recent camera form checks, computed insights).
+- Camera form checks are 2D pose estimates and can be wrong; treat their issues as cues to review technique, not as a diagnosis. If the data doesn't support an answer, say so.
 - Be concise and practical (usually under 150 words). Use short paragraphs or simple lists.
 - When a concrete in-app action would help, include it in "actions":
   - start_today: start today's planned workout

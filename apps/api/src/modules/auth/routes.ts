@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { rateLimit } from "express-rate-limit";
+import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import {
   changePasswordSchema,
   claimAccountSchema,
@@ -17,16 +17,22 @@ import * as auth from "./service.js";
 
 export const authRouter = Router();
 
-const limiter = (limit: number) =>
+const limiter = (limit: number, keyGenerator?: (req: import("express").Request) => string) =>
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    limit: env.NODE_ENV === "test" ? 1000 : limit,
+    // Only production enforces limits; dev and test runs create many accounts.
+    limit: env.NODE_ENV === "production" ? limit : 10_000,
     standardHeaders: "draft-8",
     legacyHeaders: false,
+    ...(keyGenerator ? { keyGenerator } : {}),
     message: { error: { code: "rate_limited", message: "Too many attempts, try again later" } },
   });
 const authLimiter = limiter(20);
-const guestLimiter = limiter(10);
+// Keyed by IP + email: stops password guessing on an account without locking out
+// everyone behind one shared IP (campus or office networks).
+const loginLimiter = limiter(10, (req) => `${ipKeyGenerator(req.ip ?? "")}:${String(req.body?.email ?? "").toLowerCase().slice(0, 254)}`);
+// Generous per IP: many students can share one campus IP. Abandoned guests are cleaned up.
+const guestLimiter = limiter(100);
 const emailLimiter = limiter(5);
 const clearCookie = (res: import("express").Response) => res.clearCookie(AUTH_COOKIE, { ...cookieOptions(), maxAge: undefined });
 
@@ -36,7 +42,7 @@ authRouter.post("/register", authLimiter, async (req, res) => {
   res.status(201).json({ user, token });
 });
 
-authRouter.post("/login", authLimiter, async (req, res) => {
+authRouter.post("/login", loginLimiter, async (req, res) => {
   const { user, token } = await auth.login(loginSchema.parse(req.body));
   res.cookie(AUTH_COOKIE, token, cookieOptions());
   res.json({ user, token });

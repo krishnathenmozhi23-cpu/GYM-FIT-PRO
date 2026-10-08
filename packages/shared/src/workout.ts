@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { FormCheckView } from "./formcheck.js";
 import { DIFFICULTY_RATING_MAX, DIFFICULTY_RATING_MIN, fitnessLevelSchema, goalSchema } from "./enums.js";
 
 /** A single prescribed exercise inside a workout. */
@@ -147,6 +148,7 @@ export interface SessionExerciseView {
   loaded: boolean;
   status: "pending" | "completed" | "skipped";
   replacedFromName: string | null;
+  videoUrl: string | null;
   prescription: {
     sets: number;
     repsMin: number;
@@ -156,6 +158,8 @@ export interface SessionExerciseView {
     targetWeightKg: number | null;
   };
   sets: SetView[];
+  /** Camera form checks recorded for this exercise in this session. */
+  formChecks: FormCheckView[];
 }
 
 export interface SessionView {

@@ -1,14 +1,18 @@
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { AlertTriangle, ChevronLeft, ChevronRight, ListChecks } from "lucide-react";
+import { AlertTriangle, Camera, ChevronLeft, ChevronRight, ListChecks, PlayCircle } from "lucide-react";
 import {
   EXERCISE_EQUIPMENT_LABELS,
   LEVEL_LABELS,
   LIMITATION_LABELS,
   MUSCLE_LABELS,
   PATTERN_LABELS,
+  formProfileFor,
   type ExerciseDetail,
 } from "@gymfit/shared";
-import { ErrorState, LoadingState } from "../../components/ui";
+import { Button, ErrorState, LoadingState } from "../../components/ui";
+import { FormCheckCamera } from "../formcheck/FormCheckCamera";
+import { LearnMovement } from "../formcheck/LearnMovement";
 import { api } from "../../lib/api";
 import { useAsync } from "../../lib/useAsync";
 
@@ -16,6 +20,7 @@ export default function ExerciseDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data, error, loading, reload } = useAsync(() => api.get<{ exercise: ExerciseDetail }>(`/exercises/${id}`), [id]);
+  const [practice, setPractice] = useState(false);
   if (loading) return <LoadingState />;
   if (error || !data) return <ErrorState message={error ?? "Exercise not found"} onRetry={reload} />;
   const e = data.exercise;
@@ -42,6 +47,25 @@ export default function ExerciseDetailPage() {
           <span className="badge">{e.mechanics === "compound" ? "Compound" : "Isolation"}</span>
         </div>
       </div>
+
+      <div className="card stack">
+        <div className="row">
+          <PlayCircle size={18} color="var(--accent)" />
+          <h2 className="section-title">Learn the movement</h2>
+        </div>
+        <LearnMovement exercise={e} />
+        {formProfileFor(e.id) ? (
+          <Button variant="secondary" onClick={() => setPractice(true)}>
+            <Camera size={16} /> Practice with camera form check
+          </Button>
+        ) : (
+          <p className="small faint">Camera form check isn't available for this exercise yet.</p>
+        )}
+      </div>
+
+      {practice && formProfileFor(e.id) && (
+        <FormCheckCamera profile={formProfileFor(e.id)!} exerciseName={e.name} onClose={() => setPractice(false)} />
+      )}
 
       <div className="card stack-sm">
         <span className="eyebrow">Target</span>

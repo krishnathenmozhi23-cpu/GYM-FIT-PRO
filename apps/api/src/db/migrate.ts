@@ -36,15 +36,3 @@ export async function migrate(): Promise<string[]> {
   return newlyApplied;
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
-  migrate()
-    .then((applied) => {
-      logger.info({ count: applied.length }, "Migrations complete");
-      return pool.end();
-    })
-    .catch((err) => {
-      logger.error({ err }, "Migration failed");
-      process.exit(1);
-    });
-}

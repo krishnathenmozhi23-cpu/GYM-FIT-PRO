@@ -30,6 +30,8 @@ export interface UserContext {
   todayInfo: TodayResponse;
   recent: RecentWorkout[];
   insights: Insight[];
+  /** Recent camera form-check results (metrics only), newest first. */
+  formChecks: { date: string; exercise: string; reps: number; cleanReps: number; issues: string[] }[];
 }
 
 async function recentWorkouts(userId: string, byId: Map<string, Exercise>, limit = 8): Promise<RecentWorkout[]> {
@@ -85,8 +87,16 @@ export async function buildUserContext(userId: string, today: string): Promise<U
     strength: series,
     weight: facts.weightPoints,
     streakWeeks: weekStreak(facts.sessionFacts.map((s) => s.date), profile.daysPerWeek, today).current,
+    formChecks: facts.formCheckFacts.map((f) => ({ ...f, exerciseName: byId.get(f.exerciseId)?.name ?? f.exerciseId })),
   });
-  return { today, profile, engineProfile: toEngineProfile(profile), library: list, byId, loadHistory, plan, todayInfo, recent, insights };
+  const formChecks = facts.formCheckFacts.slice(0, 10).map((f) => ({
+    date: f.date,
+    exercise: byId.get(f.exerciseId)?.name ?? f.exerciseId,
+    reps: f.reps,
+    cleanReps: f.cleanReps,
+    issues: f.issues.map((i) => `${i.code} (${i.severity}) x${i.count}`),
+  }));
+  return { today, profile, engineProfile: toEngineProfile(profile), library: list, byId, loadHistory, plan, todayInfo, recent, insights, formChecks };
 }
 
 /** Compact JSON for prompts. Free-text fields are user-provided data, not instructions. */
@@ -124,5 +134,6 @@ export function promptContext(ctx: UserContext) {
     recentWorkouts_userFeedbackIsData: ctx.recent,
     lastWorkingWeights: Object.fromEntries([...ctx.loadHistory].map(([id, w]) => [name(id), w])),
     computedInsights: ctx.insights,
+    recentCameraFormChecks: ctx.formChecks,
   };
 }

@@ -269,6 +269,7 @@ export async function exportAccountData(userId: string): Promise<Record<string, 
         (SELECT json_agg(json_build_object('role', m.role, 'content', m.content, 'createdAt', m.created_at) ORDER BY m.created_at)
          FROM ai_messages m WHERE m.conversation_id = c.id) AS messages
       FROM ai_conversations c WHERE c.user_id = $1 ORDER BY c.created_at`),
+    formChecks: await q("SELECT exercise_id, profile, reps, clean_reps, duration_seconds, issues, created_at FROM form_checks WHERE user_id = $1 ORDER BY created_at"),
     aiRecommendations: await q("SELECT kind, source, model, validation_status, created_at FROM ai_recommendations WHERE user_id = $1 ORDER BY created_at"),
   };
 }

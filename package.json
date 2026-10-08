@@ -2,7 +2,7 @@
   "name": "gymfit-pro",
   "private": true,
   "version": "0.1.0",
-  "description": "GymFit Pro — adaptive AI-assisted fitness platform",
+  "description": "GymFit Pro \u2014 adaptive AI-assisted fitness platform",
   "workspaces": [
     "packages/*",
     "apps/*"
@@ -20,7 +20,8 @@
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "test:e2e": "playwright test",
-    "start": "npm run start -w @gymfit/api"
+    "start": "npm run start -w @gymfit/api",
+    "dev:phone": "node scripts/dev.mjs --phone"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0"

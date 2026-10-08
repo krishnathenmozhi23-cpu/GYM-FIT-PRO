@@ -26,6 +26,8 @@ export const exerciseSchema = z.object({
   contraindications: z.array(limitationSchema),
   instructions: z.array(z.string()).min(1),
   commonMistakes: z.array(z.string()).min(1),
+  /** Curated demonstration video (YouTube or direct video file); null until one is reviewed and added. */
+  videoUrl: z.url().nullable(),
 });
 export type Exercise = z.infer<typeof exerciseSchema>;
 

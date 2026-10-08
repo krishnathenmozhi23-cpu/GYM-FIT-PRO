@@ -82,7 +82,7 @@ npm run build
 cd apps/api
 NODE_ENV=production API_PREFIX=/api WEB_DIST_DIR=../web/dist \
   DATABASE_URL=... JWT_SECRET=... CORS_ORIGIN=https://your.domain \
-  node dist/db/migrate.js && node dist/db/seed.js && node dist/server.js
+  node dist/migrate-cli.js && node dist/seed-cli.js && node dist/server.js
 ```
 
 Run behind HTTPS (the session cookie is `Secure` in production).
@@ -93,6 +93,7 @@ Run behind HTTPS (the session cookie is `Secure` in production).
 |---|---|
 | `npm run typecheck` | Type-check all packages |
 | `npm run dev` | API + web together (zero-config with embedded PGlite) |
+| `npm run dev:phone` | Same, with the web app on HTTPS on your network (camera form check on phones) |
 | `npm test` | API unit + integration tests (needs `gymfit_test` DB; override with `TEST_DATABASE_URL`) and web unit tests |
 | `TEST_DB=pglite npm test -w @gymfit/api` | Same API suite on in-memory embedded PostgreSQL — no database server needed |
 | `npm run test:e2e` | Playwright e2e (starts dev servers; set `E2E_BASE_URL` to test a running build; `PLAYWRIGHT_CHROMIUM_PATH` for a custom Chromium) |
@@ -120,6 +121,7 @@ All routes except `/auth/*` and `/health` require auth — an httpOnly session c
 | `POST /workout-session/:id/set`, `DELETE /workout-session/:id/set/:setId` | Log / undo a set |
 | `PATCH /workout-session/:id/exercise/:sessionExerciseId` | `skip`, `complete` or `replace` |
 | `POST /workout-session/:id/pause`, `/complete`, `/abandon` | Session lifecycle; `complete` returns plan adaptations |
+| `POST /workout-session/:id/form-check` | Save camera form-check metrics (reps, clean reps, issue counts — no video) |
 | `GET /progress`, `POST /progress` | Dashboard data; log weight or measurements |
 | `GET /ai/status` | Configured provider |
 | `POST /ai/workout-plan`, `/ai/daily-workout`, `/ai/recommend-exercise`, `/ai/fitness-insight`, `/ai/chat` | AI features (validated, with engine fallback) |
@@ -130,6 +132,25 @@ Differences from the original endpoint sketch: session completion lives at `POST
 ## Data model
 
 `users`, `user_profiles`, `fitness_goals` (one active), `exercises`, `workout_plans` (one active), `workouts` (plan days), `workout_exercises`, `workout_sessions`, `session_exercises` (snapshot of the prescription so history stays correct after the plan adapts), `exercise_sets`, `progress_records` (weight history — the only place body weight is stored), `body_measurements`, `ai_conversations`, `ai_messages`, `ai_recommendations` (audit log of every AI/engine recommendation, including rejected AI output and the reasons). See `apps/api/src/db/migrations`.
+
+## Learn the movement & camera form check
+
+**Reference material per exercise** (Explore → exercise, or "Watch how" during a workout):
+- **Reviewed video** — embedded when one has been added to `apps/api/src/db/seed/exerciseVideos.ts` (YouTube via the privacy-enhanced `youtube-nocookie.com` player, or a direct video file you're licensed to use). The list ships **empty on purpose**: only add videos a qualified person has checked, because a bad demo teaches bad form. Re-run `npm run db:seed` (or restart `npm run dev`) after editing.
+- **Animated form guide** — a built-in stick-figure demonstration for every camera-checked movement. Tests run each guide through the form analyzer, so the demo always passes its own check.
+- Until a video is reviewed, a **"Find demonstration videos"** link opens a YouTube search (clearly labelled as unreviewed).
+
+**Live camera form check** ("Check my form" during a workout, or "Practice with camera" on the exercise page):
+- Pose detection runs **on the device** with [MediaPipe Pose Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker) (Apache-2.0). **Video never leaves the device**; only rep counts and issue counts are saved (`form_checks` table).
+- It counts reps (or times holds) and flags issues per movement — e.g. knees caving in on squats, sagging hips on push-ups/planks, leaning back on overhead presses, swinging on curls. **Injury-risk issues are shown in red and spoken aloud**; form issues in amber; tips in blue. The camera's rep count can be applied to the set log in one tap.
+- Repeated injury-risk issues become a safety insight on the home screen, and the AI coach sees recent form-check results.
+- Supported: 30 library exercises across squat, lunge, push-up, hip hinge, overhead press, curl, lateral raise, plank and glute bridge (`packages/shared/src/formcheck.ts`).
+
+**Limits (shown in the app):** a single camera sees in 2D. Thresholds are coaching heuristics, not clinical measurements. Some risks can't be judged reliably — notably lower-back rounding — so the app says so instead of guessing; conventional deadlifts aren't camera-checked for that reason. It's guidance, not a substitute for a coach or physiotherapist.
+
+**Assets:** `npm run dev`/`build` run `apps/web/scripts/setup-mediapipe.mjs`, which copies the WebAssembly runtime from `node_modules` and downloads the 5.8 MB pose model into `apps/web/public/mediapipe/` (git-ignored). If the download isn't possible, the app loads the model from Google's model storage at runtime.
+
+**On a phone:** browsers only allow the camera on HTTPS pages or `localhost`. Run `npm run dev:phone` and open the `https://<your-computer-ip>:5173` address it prints on your phone (same Wi-Fi), accepting the self-signed certificate warning once.
 
 ## Accounts and email
 
@@ -149,6 +170,8 @@ Email goes through the `Mailer` interface (`apps/api/src/lib/mailer.ts`). In dev
 ## Known limitations
 
 - The Anthropic provider is type-checked against the SDK and the whole AI pipeline is tested with fake providers, but it has not yet been exercised against the live API in this repository's test suite (it needs `ANTHROPIC_API_KEY`).
+- The camera form check is validated with synthetic movement sequences and a real photo through the actual MediaPipe model in Chromium, but not yet with recorded videos of people training; thresholds may need tuning from real-world use.
+- The reviewed-video list is empty until someone qualified adds videos.
 - The web client is a responsive web app; there is no native (Flutter) client yet. The REST API supports Bearer tokens for one.
 - No real email provider is implemented yet (see "Accounts and email").
 - Single-language (English), metric units only.

@@ -1,4 +1,4 @@
-import type { Goal, Insight, StrengthSeries, WeightPoint } from "@gymfit/shared";
+import { issueDef, type FormProfileId, type Goal, type Insight, type StrengthSeries, type WeightPoint } from "@gymfit/shared";
 import { daysBetween, startOfWeek, addDays } from "../lib/dates.js";
 
 export interface InsightInput {
@@ -9,6 +9,18 @@ export interface InsightInput {
   strength: StrengthSeries[];
   weight: WeightPoint[];
   streakWeeks: number;
+  /** Camera form checks, newest first. */
+  formChecks?: FormCheckFact[];
+}
+
+export interface FormCheckFact {
+  exerciseId: string;
+  exerciseName: string;
+  profile: FormProfileId;
+  date: string;
+  reps: number;
+  cleanReps: number;
+  issues: { code: string; severity: "risk" | "form" | "tip"; count: number }[];
 }
 
 const ORDER: Insight["kind"][] = ["safety", "progress", "recovery", "consistency", "goal", "tip"];
@@ -65,6 +77,33 @@ export function computeInsights(input: InsightInput): Insight[] {
           evidence: `Best estimated 1RM ${bestBefore} kg; last 3 weeks peaked at ${Math.max(...last3.map((w) => w.best))} kg`,
         });
       }
+    }
+  }
+
+  // Camera form checks: repeated injury-risk issues, and consistently clean form.
+  const byExercise = new Map<string, FormCheckFact[]>();
+  for (const f of input.formChecks ?? []) byExercise.set(f.exerciseId, [...(byExercise.get(f.exerciseId) ?? []), f]);
+  for (const checks of byExercise.values()) {
+    const recent = checks.slice(0, 5);
+    const name = recent[0]!.exerciseName;
+    const riskCounts = new Map<string, number>();
+    for (const c of recent) for (const i of c.issues) if (i.severity === "risk") riskCounts.set(i.code, (riskCounts.get(i.code) ?? 0) + 1);
+    const [worst] = [...riskCounts].sort((a, b) => b[1] - a[1]);
+    if (worst && worst[1] >= 2) {
+      const def = issueDef(recent[0]!.profile, worst[0]);
+      out.push({
+        kind: "safety",
+        title: `${name}: ${(def?.label ?? "form issue").toLowerCase()} keeps coming up`,
+        message: `${def?.why ?? ""} Lower the load or reps until you can do it cleanly, and check the form guide. If it hurts, stop and see a professional.`.trim(),
+        evidence: `Flagged in ${worst[1]} of your last ${recent.length} camera checks`,
+      });
+    } else if (recent.length >= 3 && recent.slice(0, 3).every((c) => c.reps > 0 && c.cleanReps === c.reps)) {
+      out.push({
+        kind: "progress",
+        title: `Clean form on ${name}`,
+        message: "Your last three camera-checked sets had no form issues. That's a solid base to add load gradually.",
+        evidence: `${recent.slice(0, 3).reduce((n, c) => n + c.reps, 0)} clean reps across 3 checks`,
+      });
     }
   }
 

@@ -1,3 +1,4 @@
+import { EXERCISE_FORM_PROFILE, type FormCheckResult, type FormCheckView } from "@gymfit/shared";
 import type {
   CompleteSessionInput,
   LogSetInput,
@@ -56,6 +57,27 @@ interface SetRow {
   completed_at: Date;
 }
 
+interface FormCheckRow {
+  id: string;
+  session_exercise_id: string;
+  profile: FormCheckView["profile"];
+  reps: number;
+  clean_reps: number;
+  duration_seconds: number;
+  issues: FormCheckView["issues"];
+  created_at: Date;
+}
+
+const toFormCheck = (r: FormCheckRow): FormCheckView => ({
+  id: r.id,
+  profile: r.profile,
+  reps: r.reps,
+  cleanReps: r.clean_reps,
+  durationSeconds: r.duration_seconds,
+  issues: r.issues,
+  createdAt: r.created_at.toISOString(),
+});
+
 const toSet = (s: SetRow): SetView => ({
   id: s.id,
   setNumber: s.set_number,
@@ -79,6 +101,11 @@ export async function getSession(userId: string, sessionId: string, db: Queryabl
   const { byId } = await getLibrary();
   const { rows: exRows } = await db.query<SessionExerciseRow>(
     "SELECT * FROM session_exercises WHERE session_id = $1 ORDER BY position",
+    [sessionId],
+  );
+  const { rows: checkRows } = await db.query<FormCheckRow>(
+    `SELECT fc.* FROM form_checks fc JOIN session_exercises se ON se.id = fc.session_exercise_id
+     WHERE se.session_id = $1 ORDER BY fc.created_at`,
     [sessionId],
   );
   const { rows: setRows } = await db.query<SetRow>(
@@ -110,6 +137,7 @@ export async function getSession(userId: string, sessionId: string, db: Queryabl
         loaded: ex?.loaded ?? false,
         status: e.status,
         replacedFromName: e.replaced_from_id ? (byId.get(e.replaced_from_id)?.name ?? e.replaced_from_id) : null,
+        videoUrl: ex?.videoUrl ?? null,
         prescription: {
           sets: e.target_sets,
           repsMin: e.target_reps_min,
@@ -119,6 +147,7 @@ export async function getSession(userId: string, sessionId: string, db: Queryabl
           targetWeightKg: e.target_weight_kg,
         },
         sets: setRows.filter((r) => r.session_exercise_id === e.id).map(toSet),
+        formChecks: checkRows.filter((r) => r.session_exercise_id === e.id).map(toFormCheck),
       };
     }),
   };
@@ -376,4 +405,25 @@ export async function listHistory(userId: string, limit = 30): Promise<SessionSu
     setsCompleted: r.sets_completed,
     volumeKg: Math.round(r.volume_kg ?? 0),
   }));
+}
+
+/** Stores the metrics from an on-device camera form check (no video). */
+export async function saveFormCheck(userId: string, sessionId: string, input: FormCheckResult): Promise<FormCheckView> {
+  return withTransaction(async (db) => {
+    assertInProgress(await loadSessionRow(db, userId, sessionId, true));
+    const { rows } = await db.query<{ exercise_id: string }>(
+      "SELECT exercise_id FROM session_exercises WHERE id = $1 AND session_id = $2",
+      [input.sessionExerciseId, sessionId],
+    );
+    const exerciseId = rows[0]?.exercise_id;
+    if (!exerciseId) throw notFound("Session exercise");
+    if (EXERCISE_FORM_PROFILE[exerciseId] !== input.profile) throw badRequest("This exercise doesn't support that form check");
+    if (input.cleanReps > input.reps) throw badRequest("cleanReps can't exceed reps");
+    const { rows: saved } = await db.query<FormCheckRow>(
+      `INSERT INTO form_checks (user_id, session_exercise_id, exercise_id, profile, reps, clean_reps, duration_seconds, issues)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [userId, input.sessionExerciseId, exerciseId, input.profile, input.reps, input.cleanReps, input.durationSeconds, JSON.stringify(input.issues)],
+    );
+    return toFormCheck(saved[0]!);
+  });
 }

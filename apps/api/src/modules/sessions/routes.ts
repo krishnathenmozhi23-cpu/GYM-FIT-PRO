@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   completeSessionSchema,
+  formCheckResultSchema,
   logSetSchema,
   pauseSessionSchema,
   startAdHocSessionSchema,
@@ -49,6 +50,12 @@ sessionsRouter.patch("/:id/exercise/:exerciseId", async (req, res) => {
     updateSessionExerciseSchema.parse(req.body),
   );
   res.json({ session });
+});
+
+/** Metrics from an on-device camera form check. */
+sessionsRouter.post("/:id/form-check", async (req, res) => {
+  const check = await sessions.saveFormCheck(currentUserId(req), uuidParam(req, "id", "Workout session"), formCheckResultSchema.parse(req.body));
+  res.status(201).json({ formCheck: check });
 });
 
 sessionsRouter.post("/:id/pause", async (req, res) => {
