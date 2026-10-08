@@ -135,16 +135,18 @@ Differences from the original endpoint sketch: session completion lives at `POST
 
 ## Learn the movement & camera form check
 
-**Reference material per exercise** (Explore → exercise, or "Watch how" during a workout):
-- **Reviewed video** — embedded when one has been added to `apps/api/src/db/seed/exerciseVideos.ts` (YouTube via the privacy-enhanced `youtube-nocookie.com` player, or a direct video file you're licensed to use). The list ships **empty on purpose**: only add videos a qualified person has checked, because a bad demo teaches bad form. Re-run `npm run db:seed` (or restart `npm run dev`) after editing.
-- **Animated form guide** — a built-in stick-figure demonstration for every camera-checked movement. Tests run each guide through the form analyzer, so the demo always passes its own check.
-- Until a video is reviewed, a **"Find demonstration videos"** link opens a YouTube search (clearly labelled as unreviewed).
+**A demonstration plays on every exercise card during a workout** (and on each exercise page), best source first:
+- **Reviewed video**, if one has been added to `apps/api/src/db/seed/exerciseVideos.ts` (YouTube via the privacy-enhanced `youtube-nocookie.com` player, or a direct video file you're licensed to use). The list ships **empty on purpose**: only add videos a qualified person has checked, because a bad demo teaches bad form. Re-run `npm run db:seed` (or restart `npm run dev`) after editing.
+- **Demonstration photos** for 84 of the 91 exercises. They alternate between the start and end positions and are not real video. They come from the public-domain [Free Exercise DB](https://github.com/yuhonas/free-exercise-db) (Unlicense), resized into `apps/web/public/demos/`. Every mapping was checked by eye. Eleven show a close variation (e.g. cable instead of band), and the caption says what differs (`apps/web/src/features/formcheck/demoPhotos.ts`).
+- **Animated figure** for the 7 exercises without photos: jumping jacks, step jacks, high knees, burpee, bird dog, pike push-up and shadow boxing (`figures.ts`).
+- **Animated form guide**: a stick-figure version of every camera-checked movement, showing what the camera looks for. Tests run each guide through the form analyzer, so the demo always passes its own check.
+- A **"Find demonstration videos"** link opens a YouTube search, clearly labelled as unreviewed.
 
 **Live camera form check** ("Check my form" during a workout, or "Practice with camera" on the exercise page):
 - Pose detection runs **on the device** with [MediaPipe Pose Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker) (Apache-2.0). **Video never leaves the device**; only rep counts and issue counts are saved (`form_checks` table).
 - It counts reps (or times holds) and flags issues per movement — e.g. knees caving in on squats, sagging hips on push-ups/planks, leaning back on overhead presses, swinging on curls. **Injury-risk issues are shown in red and spoken aloud**; form issues in amber; tips in blue. The camera's rep count can be applied to the set log in one tap.
 - Repeated injury-risk issues become a safety insight on the home screen, and the AI coach sees recent form-check results.
-- Supported: 30 library exercises across squat, lunge, push-up, hip hinge, overhead press, curl, lateral raise, plank and glute bridge (`packages/shared/src/formcheck.ts`).
+- Supported: 47 of the 91 library exercises across squat, lunge, push-up, hip hinge (RDL, swing, pull-through), overhead press, curl, lateral raise, plank, glute bridge, row, pull-up/pulldown, triceps pushdown, overhead triceps extension, bench dip and side plank (`packages/shared/src/formcheck.ts`). Other exercise cards say why there's no check, such as lying on a bench, a machine hiding the body, errors that happen toward the camera, or carries leaving the frame (`apps/web/src/features/formcheck/coverage.ts`).
 
 **Limits (shown in the app):** a single camera sees in 2D. Thresholds are coaching heuristics, not clinical measurements. Some risks can't be judged reliably — notably lower-back rounding — so the app says so instead of guessing; conventional deadlifts aren't camera-checked for that reason. It's guidance, not a substitute for a coach or physiotherapist.
 

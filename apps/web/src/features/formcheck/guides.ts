@@ -15,6 +15,7 @@ export interface FrontParams {
   kneeIn: number;
   armRaise: number;
   tilt: number;
+  elbowBend: number;
   [k: string]: number;
 }
 
@@ -56,9 +57,9 @@ export const GUIDES: Record<FormProfileId, Guide> = {
   lateral_raise: {
     view: "front",
     keys: [
-      { drop: 0, kneeIn: 0, armRaise: 15, tilt: 0 },
-      { drop: 0, kneeIn: 0, armRaise: 90, tilt: 0 },
-      { drop: 0, kneeIn: 0, armRaise: 15, tilt: 0 },
+      { drop: 0, kneeIn: 0, armRaise: 15, tilt: 0, elbowBend: 0 },
+      { drop: 0, kneeIn: 0, armRaise: 90, tilt: 0, elbowBend: 0 },
+      { drop: 0, kneeIn: 0, armRaise: 15, tilt: 0, elbowBend: 0 },
     ],
     caption: "Raise out to the sides, stopping at shoulder height.",
   },
@@ -78,5 +79,58 @@ export const GUIDES: Record<FormProfileId, Guide> = {
       { shin: -20, thigh: -130, torso: -90, ...arms },
     ],
     caption: "Drive through your heels until shoulders, hips and knees line up.",
+  },
+  row: {
+    view: "side",
+    keys: [
+      { shin: 10, thigh: -10, torso: 55, upperArm: 0, forearm: 0 },
+      { shin: 10, thigh: -10, torso: 55, upperArm: 90, forearm: -10 },
+      { shin: 10, thigh: -10, torso: 55, upperArm: 0, forearm: 0 },
+    ],
+    caption: "Hinge forward with a flat back and pull your elbows back past your body. Your torso stays still.",
+  },
+  vertical_pull: {
+    view: "front",
+    keys: [
+      { drop: 0, kneeIn: 0, armRaise: 165, tilt: 0, elbowBend: 0 },
+      { drop: 0, kneeIn: 0, armRaise: 95, tilt: 0, elbowBend: 100 },
+      { drop: 0, kneeIn: 0, armRaise: 165, tilt: 0, elbowBend: 0 },
+    ],
+    caption: "Start from straight arms and pull your elbows down to your sides, evenly with both arms.",
+  },
+  triceps_pushdown: {
+    view: "side",
+    keys: [
+      { shin: 0, thigh: 0, torso: 10, upperArm: 0, forearm: -80 },
+      { shin: 0, thigh: 0, torso: 10, upperArm: 0, forearm: 0 },
+      { shin: 0, thigh: 0, torso: 10, upperArm: 0, forearm: -80 },
+    ],
+    caption: "Elbows pinned to your sides; straighten your arms fully, then let them come back up.",
+  },
+  overhead_triceps: {
+    view: "side",
+    keys: [
+      { ...stand, upperArm: 180, forearm: 70 },
+      { ...stand, upperArm: 180, forearm: 180 },
+      { ...stand, upperArm: 180, forearm: 70 },
+    ],
+    caption: "Elbows point up beside your head; straighten your arms without arching your back.",
+  },
+  bench_dip: {
+    view: "side",
+    keys: [
+      { shin: -70, thigh: -80, torso: 0, upperArm: 20, forearm: 0 },
+      { shin: -70, thigh: -80, torso: 0, upperArm: 90, forearm: -15 },
+      { shin: -70, thigh: -80, torso: 0, upperArm: 20, forearm: 0 },
+    ],
+    caption: "Lower until your upper arms are about level with the floor, then press back up. Not deeper.",
+  },
+  side_plank: {
+    view: "side",
+    keys: [
+      { shin: 72, thigh: 72, torso: 72, upperArm: 0, forearm: -90 },
+      { shin: 72, thigh: 72, torso: 72, upperArm: 0, forearm: -90 },
+    ],
+    caption: "Hips up in a straight line from head to feet, elbow under your shoulder.",
   },
 };

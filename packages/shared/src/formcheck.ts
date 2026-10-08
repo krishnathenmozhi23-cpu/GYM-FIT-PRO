@@ -7,7 +7,23 @@ import { z } from "zod";
  * is the shared vocabulary the API, AI coach and UI all use.
  */
 
-export const FORM_PROFILES = ["squat", "lunge", "push_up", "hinge", "overhead_press", "biceps_curl", "lateral_raise", "plank", "glute_bridge"] as const;
+export const FORM_PROFILES = [
+  "squat",
+  "lunge",
+  "push_up",
+  "hinge",
+  "overhead_press",
+  "biceps_curl",
+  "lateral_raise",
+  "plank",
+  "glute_bridge",
+  "row",
+  "vertical_pull",
+  "triceps_pushdown",
+  "overhead_triceps",
+  "bench_dip",
+  "side_plank",
+] as const;
 export type FormProfileId = (typeof FORM_PROFILES)[number];
 
 /** `risk` = may raise injury risk (red, spoken). `form` = less effective (amber). `tip` = optional improvement. */
@@ -90,7 +106,7 @@ export const FORM_PROFILE_DEFS: Record<FormProfileId, FormProfile> = {
   },
   hinge: {
     id: "hinge",
-    name: "Hip hinge (RDL / deadlift)",
+    name: "Hip hinge (RDL, swing, pull-through)",
     view: "side",
     setup: "Camera side-on, 2–3 m away at hip height, whole body in frame.",
     mode: "reps",
@@ -166,6 +182,86 @@ export const FORM_PROFILE_DEFS: Record<FormProfileId, FormProfile> = {
     ],
     limits: ["Lower-back over-arching at the top can't be told apart from good extension reliably — squeeze your glutes rather than arching."],
   },
+  row: {
+    id: "row",
+    name: "Row",
+    view: "side",
+    setup: "Camera side-on, 2–3 m away at hip height, so your head, hands and hips stay in frame. For one-arm rows, keep the working arm nearest the camera.",
+    mode: "reps",
+    issues: [
+      { code: "torso_swing", label: "Heaving with your back", severity: "risk", cue: "Keep your back angle still — don't heave the weight", why: "Jerking the torso to move the weight shifts load onto the lower back." },
+      { code: "partial_range", label: "Short pull", severity: "tip", cue: "Pull your elbow back past your body", why: "A full pull works the upper back more." },
+      NOT_VISIBLE,
+    ],
+    limits: ["Back rounding can't be measured reliably from one camera — keep your back flat.", "Shoulder-blade squeeze isn't visible to the camera."],
+  },
+  vertical_pull: {
+    id: "vertical_pull",
+    name: "Pull-up / pulldown",
+    view: "front",
+    setup: "Face the camera (or turn your back to it), 2–3 m away, with your hands and hips in frame.",
+    mode: "reps",
+    issues: [
+      { code: "uneven_pull", label: "Pulling unevenly", severity: "form", cue: "Pull evenly with both arms", why: "One arm doing more of the work can overload that shoulder and elbow." },
+      { code: "partial_range", label: "Partial range of motion", severity: "tip", cue: "Pull until your elbows reach your sides", why: "A full pull trains the back through its whole range." },
+      NOT_VISIBLE,
+    ],
+    limits: ["Swinging or kipping forward and back can't be seen from the front.", "Leaning far back on pulldowns can't be seen from the front."],
+  },
+  triceps_pushdown: {
+    id: "triceps_pushdown",
+    name: "Triceps pushdown",
+    view: "side",
+    setup: "Camera side-on, 2 m away, upper body and hips in frame.",
+    mode: "reps",
+    issues: [
+      { code: "elbow_drift", label: "Elbows moving", severity: "form", cue: "Pin your elbows to your sides", why: "Moving the upper arm turns it into a shoulder movement and takes work off the triceps." },
+      { code: "torso_lean", label: "Leaning over the handle", severity: "form", cue: "Stand tall — don't lean over the handle", why: "Leaning over lets bodyweight push the handle instead of your triceps." },
+      { code: "no_lockout", label: "Arms not straightened", severity: "tip", cue: "Straighten your arms fully at the bottom", why: "Full extension works the triceps through their whole range." },
+      NOT_VISIBLE,
+    ],
+    limits: [],
+  },
+  overhead_triceps: {
+    id: "overhead_triceps",
+    name: "Overhead triceps extension",
+    view: "side",
+    setup: "Camera side-on, 2 m away, from your hips to above your hands.",
+    mode: "reps",
+    issues: [
+      { code: "leaning_back", label: "Arching your back", severity: "risk", cue: "Brace your abs — don't arch your lower back", why: "Arching under a weight held overhead loads the lower back." },
+      { code: "elbow_drift", label: "Elbows drifting forward", severity: "form", cue: "Keep your elbows pointing up, close to your head", why: "Letting the elbows drift forward shifts work to the shoulders." },
+      { code: "no_lockout", label: "Arms not straightened", severity: "tip", cue: "Straighten your arms fully at the top", why: "Full extension works the triceps through their whole range." },
+      NOT_VISIBLE,
+    ],
+    limits: ["Elbows flaring out to the sides can't be seen from the side."],
+  },
+  bench_dip: {
+    id: "bench_dip",
+    name: "Bench dip",
+    view: "side",
+    setup: "Camera side-on at bench height, 2 m away, so your shoulders, elbows and hips are visible.",
+    mode: "reps",
+    issues: [
+      { code: "too_deep", label: "Dipping too deep", severity: "risk", cue: "Stop when your upper arms are level with the floor", why: "Dipping far below that stretches the front of the shoulder hard, a common source of shoulder pain." },
+      { code: "partial_range", label: "Partial range of motion", severity: "tip", cue: "Lower until your elbows are bent to about 90°", why: "A fuller range works the triceps more." },
+      NOT_VISIBLE,
+    ],
+    limits: ["Shoulders rolling forward can't be measured reliably from one camera."],
+  },
+  side_plank: {
+    id: "side_plank",
+    name: "Side plank",
+    view: "side",
+    setup: "Face the camera from 2 m away at floor level, so your head to feet is visible.",
+    mode: "hold",
+    issues: [
+      { code: "hips_sagging", label: "Hips dropping", severity: "form", cue: "Lift your hips — keep a straight line", why: "Letting the hips drop takes the work off your obliques and hangs on the shoulder." },
+      { code: "hips_piking", label: "Hips too high", severity: "tip", cue: "Lower your hips into a straight line", why: "Piking makes the hold easier and less effective." },
+      NOT_VISIBLE,
+    ],
+    limits: [],
+  },
 };
 
 /** Which exercises in the library support the camera form check. */
@@ -200,6 +296,23 @@ export const EXERCISE_FORM_PROFILE: Record<string, FormProfileId> = {
   "single-leg-glute-bridge": "glute_bridge",
   "dumbbell-hip-thrust": "glute_bridge",
   "barbell-hip-thrust": "glute_bridge",
+  "cable-pull-through": "hinge",
+  "kettlebell-swing": "hinge",
+  "cable-curl": "biceps_curl",
+  "barbell-row": "row",
+  "one-arm-dumbbell-row": "row",
+  "seated-cable-row": "row",
+  "band-row": "row",
+  "pull-up": "vertical_pull",
+  "chin-up": "vertical_pull",
+  "assisted-pull-up": "vertical_pull",
+  "lat-pulldown": "vertical_pull",
+  "band-lat-pulldown": "vertical_pull",
+  "triceps-pushdown": "triceps_pushdown",
+  "band-triceps-pushdown": "triceps_pushdown",
+  "overhead-dumbbell-triceps-extension": "overhead_triceps",
+  "bench-dip": "bench_dip",
+  "side-plank": "side_plank",
 };
 
 export function formProfileFor(exerciseId: string): FormProfile | null {

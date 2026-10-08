@@ -80,6 +80,13 @@ interface Features {
   abduction: number;
   /** Wrist height above the shoulder, in upper-arm lengths. */
   wristAboveShoulder: number;
+  /** Lower of the two wrists' height above its shoulder, in upper-arm lengths (front view). */
+  wristsAboveShoulders: number;
+  /** Mean and absolute difference of the left and right elbow angles (front view). */
+  elbowAvg: number;
+  elbowDiff: number;
+  /** Upper arm (shoulder → elbow) from straight up: 0 = pointing up, 90 = horizontal, 180 = down. */
+  upperArmFromUp: number;
 }
 
 const VIS = 0.5;
@@ -111,6 +118,8 @@ function computeFeatures(f: PoseFrame): Features {
   const noseDir = Math.sign(nose.x - S.x);
   const facing: 1 | -1 = (vis(f, L.nose) > VIS ? noseDir : footDir) >= 0 ? 1 : -1;
 
+  const elbowL = angle(ls, p[L.leftElbow]!, p[L.leftWrist]!);
+  const elbowR = angle(rs, p[L.rightElbow]!, p[L.rightWrist]!);
   const kneeL = angle(p[L.leftHip]!, p[L.leftKnee]!, p[L.leftAnkle]!);
   const kneeR = angle(p[L.rightHip]!, p[L.rightKnee]!, p[L.rightAnkle]!);
   const lowestAnkle = Math.max(p[L.leftAnkle]!.y, p[L.rightAnkle]!.y);
@@ -142,6 +151,13 @@ function computeFeatures(f: PoseFrame): Features {
     upperArmFromTorso: angle(E, S, H),
     abduction: (abd(ls, p[L.leftElbow]!, lh) + abd(rs, p[L.rightElbow]!, rh)) / 2,
     wristAboveShoulder: (S.y - W.y) / Math.max(dist(S, E), 1e-6),
+    wristsAboveShoulders: Math.min(
+      (ls.y - p[L.leftWrist]!.y) / Math.max(dist(ls, p[L.leftElbow]!), 1e-6),
+      (rs.y - p[L.rightWrist]!.y) / Math.max(dist(rs, p[L.rightElbow]!), 1e-6),
+    ),
+    elbowAvg: (elbowL + elbowR) / 2,
+    elbowDiff: Math.abs(elbowL - elbowR),
+    upperArmFromUp: fromVertical(E, S),
   };
 }
 
@@ -310,6 +326,90 @@ const RULES: Record<FormProfileId, Rules> = {
     track: ["hipAngle"],
     rep: (a) => (a.max.hipAngle! < 170 ? ["partial_range"] : []),
     joints: { partial_range: HIPS },
+  },
+  row: {
+    required: UPPER,
+    views: ["side"],
+    metric: (f) => f.elbowAngle,
+    dir: "down",
+    bottom: 110,
+    top: 145,
+    track: ["torsoSigned", "elbowAngle"],
+    rep: (a) => [
+      ...(a.max.torsoSigned! - a.min.torsoSigned! > 20 ? ["torso_swing"] : []),
+      ...(a.min.elbowAngle! > 95 ? ["partial_range"] : []),
+    ],
+    joints: { torso_swing: [...SHOULDERS, ...HIPS], partial_range: ELBOWS },
+  },
+  vertical_pull: {
+    required: UPPER,
+    views: ["front"],
+    metric: (f) => f.elbowAvg,
+    dir: "down",
+    bottom: 110,
+    top: 145,
+    // Hands stay above the shoulders throughout a pull-up or pulldown.
+    gate: (f) => f.wristsAboveShoulders > 0,
+    track: ["elbowAvg", "elbowDiff"],
+    rep: (a) => [...(a.max.elbowDiff! > 30 ? ["uneven_pull"] : []), ...(a.min.elbowAvg! > 90 ? ["partial_range"] : [])],
+    joints: { uneven_pull: ELBOWS, partial_range: ELBOWS },
+  },
+  triceps_pushdown: {
+    required: UPPER,
+    views: ["side"],
+    metric: (f) => f.elbowAngle,
+    dir: "up",
+    bottom: 110,
+    top: 150,
+    gate: (f) => f.wristAboveShoulder < 0,
+    // Upper arm judged against vertical, not the torso, so leaning over isn't double-counted as elbow drift.
+    track: ["upperArmFromUp", "torsoFromVertical", "elbowAngle"],
+    rep: (a) => [
+      ...(a.min.upperArmFromUp! < 145 ? ["elbow_drift"] : []),
+      ...(a.max.torsoFromVertical! > 35 ? ["torso_lean"] : []),
+      ...(a.max.elbowAngle! < 160 ? ["no_lockout"] : []),
+    ],
+    joints: { elbow_drift: ELBOWS, torso_lean: [...SHOULDERS, ...HIPS], no_lockout: ELBOWS },
+  },
+  overhead_triceps: {
+    required: UPPER,
+    views: ["side"],
+    metric: (f) => f.elbowAngle,
+    dir: "up",
+    bottom: 110,
+    top: 150,
+    // Elbows above the shoulders: the arms are overhead.
+    gate: (f) => f.upperArmFromUp < 70,
+    track: ["upperArmFromUp", "elbowAngle"],
+    frame: (f) => (f.leanBack > 12 ? ["leaning_back"] : []),
+    rep: (a) => [...(a.max.upperArmFromUp! > 40 ? ["elbow_drift"] : []), ...(a.max.elbowAngle! < 160 ? ["no_lockout"] : [])],
+    joints: { leaning_back: [...SHOULDERS, ...HIPS], elbow_drift: ELBOWS, no_lockout: ELBOWS },
+  },
+  bench_dip: {
+    required: UPPER,
+    views: ["side"],
+    metric: (f) => f.elbowAngle,
+    dir: "down",
+    bottom: 110,
+    top: 145,
+    // Torso upright (tells a dip apart from a push-up).
+    gate: (f) => f.torsoFromVertical < 40,
+    track: ["elbowAngle"],
+    frame: (f) => (f.elbowAngle < 70 ? ["too_deep"] : []),
+    rep: (a) => [...(a.min.elbowAngle! < 70 ? ["too_deep"] : []), ...(a.min.elbowAngle! > 100 ? ["partial_range"] : [])],
+    joints: { too_deep: [...SHOULDERS, ...ELBOWS], partial_range: ELBOWS },
+  },
+  side_plank: {
+    required: FULL,
+    // Facing the camera in a side plank, the shoulders stack vertically, which reads as a side view.
+    views: ["side", "unknown"],
+    metric: (f) => f.bodyLine,
+    dir: "down",
+    bottom: 0,
+    top: 0,
+    gate: horizontal,
+    frame: (f) => (f.bodyLine < 165 ? [f.hipBelowLine ? "hips_sagging" : "hips_piking"] : []),
+    joints: { hips_sagging: HIPS, hips_piking: HIPS },
   },
 };
 

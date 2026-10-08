@@ -21,6 +21,10 @@ test("exercise page shows the learning section and runs the on-device camera che
   await registerAndOnboard(page);
   await page.goto("/explore/dumbbell-lateral-raise");
   await expect(page.getByRole("heading", { name: "Learn the movement" })).toBeVisible();
+  const photo = page.getByRole("img", { name: /Dumbbell Lateral Raise demonstration/ });
+  await expect(photo).toBeVisible();
+  expect(await photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+  await expect(page.getByText(/Free Exercise DB/)).toBeVisible();
   await expect(page.getByRole("img", { name: /Animated form guide/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /Find demonstration videos/ })).toHaveAttribute("href", /youtube\.com\/results\?search_query=Dumbbell%20Lateral%20Raise/);
 
@@ -69,6 +73,14 @@ test("form check is available inside a workout and the guide opens from the exer
   await page.goto(`/session/${session.id}`);
   await expect(page.getByLabel("Workout time")).toBeVisible();
 
+  // The demonstration plays right on the exercise card.
+  const photo = page.getByRole("img", { name: /Push-up demonstration/ });
+  await expect(photo).toBeVisible();
+  const first = await photo.getAttribute("src");
+  await expect(page.getByRole("img", { name: /Push-up demonstration/ })).not.toHaveAttribute("src", first!, { timeout: 5000 });
+  await page.getByRole("button", { name: /Pause Push-up demo/ }).click();
+  await expect(page.getByRole("button", { name: /Play Push-up demo/ })).toBeVisible();
+
   await page.getByRole("button", { name: "Watch how" }).click();
   await expect(page.getByRole("img", { name: /Animated form guide/ })).toBeVisible();
   await page.getByRole("button", { name: "Close" }).click();
@@ -81,4 +93,28 @@ test("form check is available inside a workout and the guide opens from the exer
   await dialog.getByRole("button", { name: "Finish set" }).click();
   await dialog.getByRole("button", { name: "Done" }).click(); // nothing detected → nothing saved
   await expect(dialog).toBeHidden();
+});
+
+test("every exercise card has a demonstration; unsupported ones say why there's no camera check", async ({ page }) => {
+  await registerAndOnboard(page);
+  const res = await page.request.post("/api/workout-session", {
+    data: {
+      title: "Demo coverage",
+      exercises: [
+        { exerciseId: "bird-dog", sets: 2, repsMin: 8, repsMax: 10, durationSeconds: null, restSeconds: 45, targetWeightKg: null },
+        { exerciseId: "pull-up", sets: 2, repsMin: 5, repsMax: 8, durationSeconds: null, restSeconds: 90, targetWeightKg: null },
+      ],
+    },
+  });
+  expect(res.status()).toBe(201);
+  const { session } = (await res.json()) as { session: { id: string } };
+  await page.goto(`/session/${session.id}`);
+  // Bird dog has no photos, so it gets the animated figure — and no camera check, with the reason.
+  await expect(page.getByRole("img", { name: /Animated demonstration: On hands and knees/ })).toBeVisible();
+  await expect(page.getByText(/No camera form check for this exercise/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Check my form" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: /Next exercise/ }).click();
+  await expect(page.getByRole("img", { name: /Pull-up demonstration/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Check my form" })).toBeVisible();
 });

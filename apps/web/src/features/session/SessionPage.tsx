@@ -20,6 +20,8 @@ import { RestTimer } from "./RestTimer";
 import { SessionSummary } from "./SessionSummary";
 import { FormCheckCamera } from "../formcheck/FormCheckCamera";
 import { LearnMovement } from "../formcheck/LearnMovement";
+import { MovementDemo } from "../formcheck/MovementDemo";
+import { cameraUnsupportedReason } from "../formcheck/coverage";
 
 const RATINGS = [
   { value: 1, label: "Very easy" },
@@ -359,6 +361,8 @@ function ExerciseCard({
         {ex.status === "skipped" && <span className="badge badge-orange">Skipped</span>}
       </div>
 
+      <MovementDemo exercise={{ id: ex.exerciseId, name: ex.exerciseName, videoUrl: ex.videoUrl }} />
+
       <div className="stack-sm">
         <div className="set-row small faint" aria-hidden>
           <span>Set</span>
@@ -416,18 +420,18 @@ function ExerciseCard({
         </Button>
       )}
 
-      <div className="grid-2">
-        <Button variant="secondary" small onClick={() => setLearnOpen(true)}>
-          <PlayCircle size={16} /> Watch how
+      {formProfile ? (
+        <Button block onClick={() => setCameraOpen(true)} disabled={disabled}>
+          <Camera size={18} /> Check my form
         </Button>
-        {formProfile ? (
-          <Button variant="secondary" small onClick={() => setCameraOpen(true)} disabled={disabled}>
-            <Camera size={16} /> Check my form
-          </Button>
-        ) : (
-          <span className="small faint" style={{ alignSelf: "center" }}>No camera check for this exercise yet</span>
-        )}
-      </div>
+      ) : (
+        <p className="small faint">
+          <Camera size={14} style={{ verticalAlign: "-2px" }} /> No camera form check for this exercise — {cameraUnsupportedReason(ex.exerciseId)}
+        </p>
+      )}
+      <Button variant="secondary" small onClick={() => setLearnOpen(true)}>
+        <PlayCircle size={16} /> Watch how
+      </Button>
       {cameraNote && <Alert kind="info">{cameraNote}</Alert>}
       {lastCheck && (
         <div className="small row wrap" style={{ gap: 6 }} aria-label="Last form check">

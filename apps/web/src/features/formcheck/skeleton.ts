@@ -69,7 +69,17 @@ export function sidePose(p: SidePose): PoseFrame["landmarks"] {
  * 1 = deep squat); `kneeIn` moves the knees toward the midline (valgus);
  * `armRaise` is shoulder abduction in degrees; `tilt` leans the torso sideways.
  */
-export function frontPose(o: { drop?: number; kneeIn?: number; armRaise?: number; tilt?: number; cx?: number }): PoseFrame["landmarks"] {
+export function frontPose(o: {
+  drop?: number;
+  kneeIn?: number;
+  armRaise?: number;
+  tilt?: number;
+  cx?: number;
+  /** Elbow flexion in degrees (0 = straight); the forearm folds up and in. */
+  elbowBend?: number;
+  /** Override for the person's right arm, to simulate an uneven pull. */
+  elbowBendRight?: number;
+}): PoseFrame["landmarks"] {
   const cx = o.cx ?? 0.5;
   const drop = o.drop ?? 0;
   const ankleY = 0.9;
@@ -92,7 +102,9 @@ export function frontPose(o: { drop?: number; kneeIn?: number; armRaise?: number
     const ex = sx + s * Math.sin(raise) * LEN.upperArm;
     const ey = shoulderY + Math.cos(raise) * LEN.upperArm;
     put(left ? L.leftElbow : L.rightElbow, ex, ey);
-    put(left ? L.leftWrist : L.rightWrist, ex + s * Math.sin(raise) * LEN.forearm, ey + Math.cos(raise) * LEN.forearm);
+    const bend = left ? (o.elbowBend ?? 0) : (o.elbowBendRight ?? o.elbowBend ?? 0);
+    const fore = raise + (bend * Math.PI) / 180;
+    put(left ? L.leftWrist : L.rightWrist, ex + s * Math.sin(fore) * LEN.forearm, ey + Math.cos(fore) * LEN.forearm);
     put(left ? L.leftHip : L.rightHip, cx + s * hipW, hipY);
     put(left ? L.leftKnee : L.rightKnee, cx + s * kneeOut, kneeY);
     put(left ? L.leftAnkle : L.rightAnkle, cx + s * stance, ankleY);

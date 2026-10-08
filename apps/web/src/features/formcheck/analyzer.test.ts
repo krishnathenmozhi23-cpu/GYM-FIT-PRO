@@ -262,6 +262,118 @@ describe("lunge", () => {
   });
 });
 
+describe("row", () => {
+  const hang: Angles = { shin: 10, thigh: -10, torso: 55, upperArm: 0, forearm: 0 };
+  const pulled: Angles = { ...hang, upperArm: 90, forearm: -10 };
+  it("counts full rows with a still torso", () => {
+    const r = run("row", sideFrames([hang, pulled, hang], 4));
+    expect(r.summary.reps).toBe(4);
+    expect(r.summary.issues).toEqual([]);
+  });
+  it("flags heaving the weight up with the back as an injury risk", () => {
+    const r = run("row", sideFrames([hang, { ...pulled, torso: 25 }, hang], 3));
+    expect(r.summary.reps).toBe(3);
+    expect(r.summary.issues.find((i) => i.code === "torso_swing")).toMatchObject({ severity: "risk", count: 3 });
+  });
+  it("tips on short pulls", () => {
+    const r = run("row", sideFrames([hang, { ...hang, upperArm: 72 }, hang], 3));
+    expect(r.summary.reps).toBe(3);
+    expect(r.codes.has("partial_range")).toBe(true);
+    expect(r.summary.cleanReps).toBe(3);
+  });
+});
+
+describe("pull-up / pulldown", () => {
+  const hang = { drop: 0, kneeIn: 0, armRaise: 165, tilt: 0, elbowBend: 0 };
+  const top = { ...hang, armRaise: 95, elbowBend: 100 };
+  it("counts even, full pulls", () => {
+    const r = run("vertical_pull", frontFrames([hang, top, hang], 4));
+    expect(r.summary.reps).toBe(4);
+    expect(r.summary.issues).toEqual([]);
+  });
+  it("flags pulling with one arm more than the other", () => {
+    // Every keyframe needs the same keys so they interpolate.
+    const h = { ...hang, elbowBendRight: 0 };
+    const r = run("vertical_pull", frontFrames([h, { ...top, elbowBendRight: 45 }, h], 3));
+    expect(r.summary.reps).toBe(3);
+    expect(r.codes.has("uneven_pull")).toBe(true);
+    expect(r.summary.cleanReps).toBe(0);
+  });
+  it("tips on half reps", () => {
+    const r = run("vertical_pull", frontFrames([hang, { ...hang, armRaise: 120, elbowBend: 75 }, hang], 3));
+    expect(r.summary.reps).toBe(3);
+    expect(r.codes.has("partial_range")).toBe(true);
+  });
+  it("asks the user to face the camera when filmed side-on", () => {
+    const r = run("vertical_pull", sideFrames([{ ...STAND, upperArm: 180, forearm: 180 }, { ...STAND, upperArm: 150, forearm: 0 }], 2));
+    expect(r.summary.reps).toBe(0);
+    expect(r.a.state.setupHint).toMatch(/Face the camera/);
+  });
+});
+
+describe("triceps pushdown", () => {
+  const up: Angles = { shin: 0, thigh: 0, torso: 10, upperArm: 0, forearm: -80 };
+  const down: Angles = { ...up, forearm: 0 };
+  it("counts locked-out pushdowns", () => {
+    const r = run("triceps_pushdown", sideFrames([up, down, up], 4));
+    expect(r.summary.reps).toBe(4);
+    expect(r.summary.issues).toEqual([]);
+  });
+  it("flags elbows moving and leaning over the handle", () => {
+    const drift = run("triceps_pushdown", sideFrames([{ ...up, upperArm: -50, forearm: -130 }, down, { ...up, upperArm: -50, forearm: -130 }], 3));
+    expect(drift.codes.has("elbow_drift")).toBe(true);
+    const lean = run("triceps_pushdown", sideFrames([{ ...up, torso: 45 }, { ...down, torso: 45 }, { ...up, torso: 45 }], 3));
+    expect(lean.codes.has("torso_lean")).toBe(true);
+    expect(lean.codes.has("elbow_drift")).toBe(false);
+  });
+});
+
+describe("overhead triceps extension", () => {
+  const bent: Angles = { ...STAND, upperArm: 180, forearm: 70 };
+  const straight: Angles = { ...STAND, upperArm: 180, forearm: 180 };
+  it("counts reps with elbows up", () => {
+    const r = run("overhead_triceps", sideFrames([bent, straight, bent], 3));
+    expect(r.summary.reps).toBe(3);
+    expect(r.summary.issues).toEqual([]);
+  });
+  it("flags arching back as an injury risk and elbows drifting forward", () => {
+    const arch = run("overhead_triceps", sideFrames([{ ...bent, torso: -20 }, { ...straight, torso: -20 }, { ...bent, torso: -20 }], 3));
+    expect(arch.summary.issues.find((i) => i.code === "leaning_back")?.severity).toBe("risk");
+    const drift = run("overhead_triceps", sideFrames([{ ...bent, upperArm: -130, forearm: -40 }, { ...straight, upperArm: -130, forearm: -130 }, { ...bent, upperArm: -130, forearm: -40 }], 3));
+    expect(drift.codes.has("elbow_drift")).toBe(true);
+  });
+});
+
+describe("bench dip", () => {
+  const top: Angles = { shin: -70, thigh: -80, torso: 0, upperArm: 20, forearm: 0 };
+  const bottom: Angles = { ...top, upperArm: 90, forearm: -15 };
+  it("counts dips to about 90°", () => {
+    const r = run("bench_dip", sideFrames([top, bottom, top], 4));
+    expect(r.summary.reps).toBe(4);
+    expect(r.summary.issues).toEqual([]);
+  });
+  it("warns about dipping too deep as an injury risk", () => {
+    const r = run("bench_dip", sideFrames([top, { ...top, upperArm: 90, forearm: -30 }, top], 3));
+    expect(r.summary.reps).toBe(3);
+    expect(r.summary.issues.find((i) => i.code === "too_deep")).toMatchObject({ severity: "risk", count: 3 });
+    expect(r.events.some((e) => e.type === "issue" && e.code === "too_deep")).toBe(true);
+  });
+});
+
+describe("side plank (hold)", () => {
+  const line: Angles = { shin: 72, thigh: 72, torso: 72, upperArm: 0, forearm: -90 };
+  it("times a straight hold with no issues", () => {
+    const r = run("side_plank", sideFrames([line, line], 3, 1500));
+    expect(r.summary.durationSeconds).toBeGreaterThanOrEqual(4);
+    expect(r.summary.issues).toEqual([]);
+  });
+  it("records seconds with the hips dropping", () => {
+    const sag: Angles = { ...line, thigh: 88, torso: 58 };
+    const r = run("side_plank", sideFrames([sag, sag], 3, 1500));
+    expect(r.summary.issues.find((i) => i.code === "hips_sagging")?.count).toBeGreaterThanOrEqual(3);
+  });
+});
+
 describe("animated form guides", () => {
   it.each(FORM_PROFILES)("the %s demo passes its own form check", (profile) => {
     const g = GUIDES[profile];
