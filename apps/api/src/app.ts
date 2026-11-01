@@ -46,7 +46,14 @@ export function createApp() {
   });
   app.use(
     cors({
-      origin: env.CORS_ORIGIN.split(",").map((o) => o.trim()),
+      origin: (requestOrigin, callback) => {
+        if (!requestOrigin) return callback(null, true);
+        const allowed = env.CORS_ORIGIN.split(",").map((o) => o.trim());
+        if (allowed.includes(requestOrigin) || env.NODE_ENV === "development") {
+          return callback(null, true);
+        }
+        callback(new Error("Not allowed by CORS"));
+      },
       credentials: true,
     }),
   );

@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, existsSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import pg from "pg";
 import { env } from "../config/env.js";
 import { logger } from "../lib/logger.js";
@@ -66,7 +67,15 @@ function createPgliteDatabase(dataDir: string): Database {
   let instance: Promise<PGliteInstance> | null = null;
   const open = () =>
     (instance ??= import("@electric-sql/pglite").then(({ PGlite, types }) => {
-      if (dataDir !== "memory://") mkdirSync(dataDir, { recursive: true });
+      if (dataDir !== "memory://") {
+        mkdirSync(dataDir, { recursive: true });
+        const pidFile = join(dataDir, "postmaster.pid");
+        if (existsSync(pidFile)) {
+          try {
+            rmSync(pidFile, { force: true });
+          } catch {}
+        }
+      }
       return new PGlite(dataDir, {
         parsers: {
           [types.NUMERIC]: (v: string) => Number(v),

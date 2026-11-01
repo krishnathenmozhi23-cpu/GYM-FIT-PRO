@@ -17,6 +17,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
     "@electric-sql/pglite": "^0.5.8",
+    "@google/genai": "^2.32.0",
     "@gymfit/shared": "^0.1.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

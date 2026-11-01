@@ -121,7 +121,7 @@ export interface InsightsResponse {
 }
 
 export interface AiStatus {
-  provider: "anthropic" | "mock" | "none";
+  provider: "anthropic" | "gemini" | "mock" | "none";
   model: string | null;
   llmEnabled: boolean;
 }

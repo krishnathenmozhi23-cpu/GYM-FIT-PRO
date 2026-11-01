@@ -1,5 +1,6 @@
 import { env } from "../../config/env.js";
 import { AnthropicProvider } from "./anthropic.js";
+import { GeminiProvider } from "./gemini.js";
 import { DevMockProvider } from "./devMock.js";
 import type { LlmProvider } from "./types.js";
 
@@ -11,9 +12,11 @@ export function getProvider(): LlmProvider | null {
   provider =
     env.AI_PROVIDER === "anthropic"
       ? new AnthropicProvider(env.AI_MODEL, env.AI_TIMEOUT_MS)
-      : env.AI_PROVIDER === "mock"
-        ? new DevMockProvider()
-        : null;
+      : env.AI_PROVIDER === "gemini"
+        ? new GeminiProvider(env.AI_MODEL, env.GEMINI_API_KEY)
+        : env.AI_PROVIDER === "mock"
+          ? new DevMockProvider()
+          : null;
   return provider;
 }
 

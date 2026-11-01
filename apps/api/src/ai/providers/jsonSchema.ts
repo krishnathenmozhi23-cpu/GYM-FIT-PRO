@@ -13,6 +13,10 @@ function clean(node: unknown): unknown {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
     if (STRIP.has(k)) continue;
+    if (k === "const") {
+      out.enum = [v];
+      continue;
+    }
     out[k === "oneOf" ? "anyOf" : k] = clean(v);
   }
   if (out.type === "object" && out.properties && typeof out.properties === "object") {

@@ -31,7 +31,7 @@ export interface StructuredResult<T> {
  * touch the database; callers validate and persist results.
  */
 export interface LlmProvider {
-  readonly name: "anthropic" | "mock";
+  readonly name: "anthropic" | "gemini" | "mock";
   readonly model: string;
   /** Source label recorded with every result. */
   readonly source: "ai" | "dev_mock";

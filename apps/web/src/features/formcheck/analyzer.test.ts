@@ -129,7 +129,7 @@ describe("squat", () => {
 
 describe("push-up", () => {
   const top: Angles = { shin: 80, thigh: 80, torso: 80, upperArm: 0, forearm: 0 };
-  const bottom: Angles = { shin: 86, thigh: 86, torso: 86, upperArm: -60, forearm: 30 };
+  const bottom: Angles = { shin: 86, thigh: 86, torso: 86, upperArm: 60, forearm: -30 };
 
   it("counts reps with a straight body", () => {
     const r = run("push_up", sideFrames([top, bottom, top], 6));

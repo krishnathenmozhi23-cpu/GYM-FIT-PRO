@@ -19,6 +19,11 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
         <div className="center-state" style={{ minHeight: "80dvh" }} role="alert">
           <p style={{ color: "var(--text)", fontWeight: 700 }}>Something went wrong</p>
           <p className="small">Your logged data is safe. Reload to continue.</p>
+          {this.state.error?.message && (
+            <pre style={{ color: "var(--danger)", fontSize: "0.8rem", maxWidth: "90vw", overflowX: "auto", whiteSpace: "pre-wrap", textAlign: "left" }}>
+              {this.state.error.message}
+            </pre>
+          )}
           <button className="btn btn-primary" onClick={() => window.location.reload()}>
             Reload
           </button>

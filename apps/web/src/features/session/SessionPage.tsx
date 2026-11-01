@@ -80,7 +80,9 @@ export default function SessionPage() {
     void load();
   }, [load]);
 
-  useEffect(() => setExerciseStart(Date.now()), [current]);
+  useEffect(() => {
+    setExerciseStart(Date.now());
+  }, [current]);
 
   const run = useCallback(async <T,>(fn: () => Promise<T>): Promise<T | undefined> => {
     setActionError(null);

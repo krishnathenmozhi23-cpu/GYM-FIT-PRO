@@ -26,9 +26,10 @@ const envSchema = z.object({
    * `mock`      — development mock provider; responses are marked `dev_mock`.
    * `none`      — no LLM; the deterministic rule engine answers everything.
    */
-  AI_PROVIDER: z.enum(["anthropic", "mock", "none"]).default("none"),
-  AI_MODEL: z.string().default("claude-opus-5-5"),
+  AI_PROVIDER: z.enum(["anthropic", "gemini", "mock", "none"]).default("none"),
+  AI_MODEL: z.string().default("gemini-3.1-flash-lite"),
   AI_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
+  GEMINI_API_KEY: z.string().optional(),
   /** Public URL of the web app, used in emailed links. */
   APP_URL: z.string().url().default("http://localhost:5173"),
   /**

@@ -15,7 +15,7 @@ export default defineConfig({
     host: phone ? true : undefined,
     proxy: {
       "/api": {
-        target: process.env.API_PROXY_TARGET ?? "http://localhost:4000",
+        target: process.env.API_PROXY_TARGET ?? "http://127.0.0.1:4000",
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api/, ""),
       },
@@ -25,7 +25,7 @@ export default defineConfig({
     port: 4173,
     proxy: {
       "/api": {
-        target: process.env.API_PROXY_TARGET ?? "http://localhost:4000",
+        target: process.env.API_PROXY_TARGET ?? "http://127.0.0.1:4000",
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api/, ""),
       },

@@ -38,10 +38,10 @@ export const GUIDES: Record<FormProfileId, Guide> = {
     view: "side",
     keys: [
       { shin: 80, thigh: 80, torso: 80, upperArm: 0, forearm: 0 },
-      { shin: 86, thigh: 86, torso: 86, upperArm: -60, forearm: 30 },
+      { shin: 86, thigh: 86, torso: 86, upperArm: 60, forearm: -30 },
       { shin: 80, thigh: 80, torso: 80, upperArm: 0, forearm: 0 },
     ],
-    caption: "Body stays in one straight line from head to heels.",
+    caption: "Body stays in one straight line from head to heels. Hands under your shoulders.",
   },
   hinge: { view: "side", keys: [stand, { shin: 5, thigh: -12, torso: 80, ...arms }, stand], caption: "Push hips back with soft knees and a flat back." },
   overhead_press: {

@@ -19,17 +19,20 @@ const SUGGESTIONS = [
 const titleCase = (slug: string) => slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
 function actionLabel(a: ChatAction): string {
+  if (!a || !a.type) return "Action";
   switch (a.type) {
     case "start_today":
       return "Start workout";
     case "quick_workout":
       return a.focus ? `Build ${a.minutes}-min ${a.focus.replace("_", " ")} workout` : `Build ${a.minutes}-min version`;
     case "view_exercise":
-      return `View ${titleCase(a.exerciseId)}`;
+      return `View ${titleCase(a.exerciseId || "")}`;
     case "regenerate_plan":
       return "Rebuild my plan";
     case "log_weight":
       return "Log weight";
+    default:
+      return "Action";
   }
 }
 
@@ -58,7 +61,9 @@ export default function AssistantSheet({ open, onClose }: { open: boolean; onClo
     );
   }, []);
 
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), [messages, sending]);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, sending]);
 
   async function send(text: string) {
     const message = text.trim();
@@ -103,6 +108,8 @@ export default function AssistantSheet({ open, onClose }: { open: boolean; onClo
       case "log_weight":
         onClose();
         navigate("/progress");
+        break;
+      default:
         break;
     }
   }
